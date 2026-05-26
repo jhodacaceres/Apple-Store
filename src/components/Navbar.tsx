@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, LogIn, LayoutDashboard, ShoppingBag, LogOut, Home, Grid, MessageSquare } from 'lucide-react';
+import { Search, LayoutDashboard, ShoppingBag, LogOut, Home, Grid, MessageSquare } from 'lucide-react';
 
 export default function Navbar() {
   const location = useLocation();

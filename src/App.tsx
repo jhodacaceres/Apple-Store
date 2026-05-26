@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Home from './pages/Home';
 import Catalog from './pages/Catalog';
 import Contact from './pages/Contact';
-import Login from './pages/Login';
 import Navbar from './components/Navbar';
 
 import AdminLayout from './pages/admin/AdminLayout';
@@ -14,7 +13,6 @@ import Sales from './pages/admin/Sales';
 import Settings from './pages/admin/Settings';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   const [isAdminDarkMode, setIsAdminDarkMode] = useState(false);
   const [contactPhone, setContactPhone] = useState('+59170000000');
@@ -23,7 +21,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+      <Navbar />
       
       <Routes>
         <Route path="/" element={<Home />} />
@@ -32,7 +30,7 @@ function App() {
         <Route path="/contact" element={
           <Contact contactPhone={contactPhone} whatsappMessage={whatsappMessage} />
         } />
-        <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} />} />
+        <Route path="/login" />
         
         <Route path="/admin" element={<AdminLayout isAdminDarkMode={isAdminDarkMode} />}>
           <Route index element={<Navigate to="inventory" replace />} />
