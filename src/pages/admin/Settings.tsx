@@ -73,7 +73,7 @@ export default function Settings({
                   type="text" 
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="+591..." 
+                  placeholder="68531359" 
                   className={`w-full border rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium ${
                     isAdminDarkMode 
                       ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500' 

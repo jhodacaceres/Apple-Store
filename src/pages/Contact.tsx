@@ -13,7 +13,7 @@ export default function Contact({ contactPhone, whatsappMessage }: ContactProps)
   const encodedMessage = encodeURIComponent(whatsappMessage);
   
   // Usamos el número limpio y el mensaje codificado
-  const whatsappUrl = `https://wa.me/${whatsappNumber.replace('+', '')}?text=${encodedMessage}`;
+  const whatsappUrl = `https://wa.me/+591${whatsappNumber.replace('+', '')}?text=${encodedMessage}`;
 
   return (
     <div className="min-h-[calc(100vh-73px)] bg-white font-sans flex items-center justify-center pb-24 md:pb-12">

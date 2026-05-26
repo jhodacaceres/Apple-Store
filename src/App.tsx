@@ -15,7 +15,7 @@ import Settings from './pages/admin/Settings';
 function App() {
   
   const [isAdminDarkMode, setIsAdminDarkMode] = useState(false);
-  const [contactPhone, setContactPhone] = useState('+59170000000');
+  const [contactPhone, setContactPhone] = useState('68531959');
   // Nuevo estado para el mensaje predeterminado
   const [whatsappMessage, setWhatsappMessage] = useState('Hola, me gustaría saber más sobre un equipo.');
 
