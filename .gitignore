@@ -25,3 +25,8 @@ dist-ssr
 
 
 .env
+
+# Archivos sensibles y herramientas de desarrollo
+credentials.md
+skills-lock.json
+.agents/

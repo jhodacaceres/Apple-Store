@@ -1,10 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" id="favicon" href="/favicon.svg" />
+    <script>
+      (function () {
+        var ONLINE_ICON = '/favicon.svg';
+        var OFFLINE_ICON = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='18' y='1' width='64' height='98' rx='14' fill='%23888'/><rect x='24' y='10' width='52' height='76' rx='5' fill='%23bbb'/><rect x='34' y='1' width='32' height='7' rx='3.5' fill='%23999'/><rect x='35' y='89' width='30' height='4' rx='2' fill='%23aaa'/><text x='50' y='58' font-family='Helvetica Neue,Arial,sans-serif' font-size='36' font-weight='700' text-anchor='middle' fill='%23ddd'>A</text></svg>";
+        function updateFavicon() {
+          var el = document.getElementById('favicon');
+          if (el) el.href = navigator.onLine ? ONLINE_ICON : OFFLINE_ICON;
+        }
+        window.addEventListener('online', updateFavicon);
+        window.addEventListener('offline', updateFavicon);
+        updateFavicon();
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>apple-zone</title>
+    <meta name="description" content="Compra iPhones usados certificados en Bolivia. Apple Zone — garantía asegurada, equipos originales desbloqueados." />
+    <title>Apple Zone Bolivia — iPhones Certificados</title>
   </head>
   <body>
     <div id="root"></div>
