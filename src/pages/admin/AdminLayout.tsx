@@ -1,13 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, Settings as SettingsIcon, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Settings as SettingsIcon } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AdminLayoutProps {
   isAdminDarkMode: boolean;
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (val: boolean) => void;
 }
 
-export default function AdminLayout({ isAdminDarkMode }: AdminLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+function getInitials(name: string | null | undefined, email: string | null | undefined): string {
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  if (email) return email.slice(0, 2).toUpperCase();
+  return 'AZ';
+}
+
+export default function AdminLayout({ isAdminDarkMode, isSidebarOpen, setIsSidebarOpen }: AdminLayoutProps) {
+  const { user, profile } = useAuth();
+
+  const displayName  = profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Usuario';
+  const displayEmail = user?.email || '';
+  const initials     = getInitials(profile?.full_name, user?.email);
 
   useEffect(() => {
     const prevBg     = document.body.style.backgroundColor;
@@ -22,9 +39,8 @@ export default function AdminLayout({ isAdminDarkMode }: AdminLayoutProps) {
     };
   }, [isAdminDarkMode]);
 
-  const bgMain = isAdminDarkMode ? 'bg-gray-900 text-white' : 'bg-[#FAFAFA] text-[#1C1C1E]';
+  const bgMain    = isAdminDarkMode ? 'bg-gray-900 text-white' : 'bg-[#FAFAFA] text-[#1C1C1E]';
   const bgSidebar = isAdminDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-100 text-[#1C1C1E]';
-  const bgMobileHeader = isAdminDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-100 text-[#1C1C1E]';
 
   const navItemStyle = ({ isActive }: { isActive: boolean }) => {
     if (isActive) {
@@ -44,28 +60,23 @@ export default function AdminLayout({ isAdminDarkMode }: AdminLayoutProps) {
   return (
     <div className={`flex h-[calc(100vh-73px)] overflow-hidden relative transition-colors duration-300 ${bgMain}`}>
 
-      {/* Header móvil */}
-      <div className={`md:hidden flex items-center justify-between border-b p-4 absolute top-0 w-full z-20 ${bgMobileHeader}`}>
-        <div className="flex items-center gap-1.5">
-          <span className="text-lg font-black text-[#0A0A0A]">
-            Apple
-          </span>
-          <span className="text-lg font-black bg-[#0A0A0A] text-white px-1.5 py-0.5 rounded-md">Zone</span>
-        </div>
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-          {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
-      </div>
+      {/* Backdrop móvil */}
+      {isSidebarOpen && (
+        <div
+          className="md:hidden absolute inset-0 z-10 bg-black/30 backdrop-blur-[2px]"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
-      {/* Menú Lateral (Sidebar) */}
-      <div className={`flex-col justify-between w-64 border-r p-5 ${bgSidebar} ${isSidebarOpen ? 'flex fixed inset-y-0 left-0 z-10 pt-16' : 'hidden md:flex md:relative md:pt-6'}`}>
+      {/* Sidebar */}
+      <div className={`flex-col justify-between w-64 border-r p-5 ${bgSidebar} ${
+        isSidebarOpen ? 'flex absolute inset-y-0 left-0 z-20 pt-4' : 'hidden md:flex md:relative md:pt-6'
+      }`}>
         <div>
           <div className="mb-8 hidden md:block">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-lg font-black text-[#0A0A0A]">
-                Apple
-              </span>
-              <span className="text-lg font-black bg-[#0A0A0A] text-white px-1.5 py-0.5 rounded-md">Zone</span>
+              <span className={`text-lg font-black ${isAdminDarkMode ? 'text-white' : 'text-[#0A0A0A]'}`}>Apple</span>
+              <span className={`text-lg font-black px-1.5 py-0.5 rounded-md ${isAdminDarkMode ? 'bg-white text-[#0A0A0A]' : 'bg-[#0A0A0A] text-white'}`}>Zone</span>
             </div>
             <p className="text-xs font-medium text-gray-400">Panel de Gestión</p>
           </div>
@@ -88,17 +99,17 @@ export default function AdminLayout({ isAdminDarkMode }: AdminLayoutProps) {
         {/* Perfil al fondo */}
         <div className={`flex items-center gap-3 pt-4 border-t ${isAdminDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
           <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-black ${isAdminDarkMode ? 'bg-gray-600 text-white' : 'bg-[#0A0A0A] text-white'}`}>
-            AZ
+            {initials}
           </div>
-          <div className="overflow-hidden">
-            <p className="text-sm font-semibold truncate">Admin User</p>
-            <p className={`text-xs truncate ${isAdminDarkMode ? 'text-gray-400' : 'text-gray-400'}`}>admin@applezone.bo</p>
+          <div className="overflow-hidden min-w-0">
+            <p className={`text-sm font-semibold truncate ${isAdminDarkMode ? 'text-white' : 'text-[#0A0A0A]'}`}>{displayName}</p>
+            <p className="text-xs truncate text-gray-400">{displayEmail}</p>
           </div>
         </div>
       </div>
 
       {/* Contenedor Principal */}
-      <div className="flex-1 p-5 md:p-10 pt-20 md:pt-10 overflow-auto w-full">
+      <div className="flex-1 p-5 md:p-10 overflow-auto w-full">
         <Outlet context={{ isAdminDarkMode }} />
       </div>
     </div>

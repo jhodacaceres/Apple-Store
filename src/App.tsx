@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 
 import { AuthProvider } from './contexts/AuthContext';
@@ -20,11 +20,18 @@ import Inventory from './pages/admin/Inventory';
 import Sales from './pages/admin/Sales';
 import Settings from './pages/admin/Settings';
 
-function App() {
+function AppContent() {
+  const location = useLocation();
   const [isAdminDarkMode, setIsAdminDarkMode] = useState(false);
-  const [sweeping, setSweeping]     = useState(false);
-  const [sweepTarget, setSweepTarget] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen]     = useState(false);
+  const [sweeping, setSweeping]               = useState(false);
+  const [sweepTarget, setSweepTarget]         = useState(false);
   const sweepTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Cerrar sidebar al salir del área admin
+  useEffect(() => {
+    if (!location.pathname.startsWith('/admin')) setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   const handleSetDarkMode = (val: boolean) => {
     sweepTimers.current.forEach(clearTimeout);
@@ -38,10 +45,10 @@ function App() {
       setTimeout(() => setSweeping(false), 600),
     ];
   };
-  const [contactPhone, setContactPhone] = useState('68531959');
+
+  const [contactPhone, setContactPhone]       = useState('68531959');
   const [whatsappMessage, setWhatsappMessage] = useState('Hola, me gustaría saber más sobre un equipo.');
 
-  // Cargar configuración desde Supabase al iniciar
   useEffect(() => {
     supabase
       .from('settings')
@@ -52,52 +59,70 @@ function App() {
           setContactPhone(data.contact_phone);
           setWhatsappMessage(data.whatsapp_message);
         }
-        // Si hay error (Supabase no configurado) se usan los valores por defecto del useState
       });
   }, []);
 
   return (
+    <>
+      <Navbar
+        isAdminDarkMode={isAdminDarkMode}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => setIsSidebarOpen(v => !v)}
+      />
+
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/catalog" element={<Catalog />} />
+        <Route path="/producto/:slug" element={<ProductDetail />} />
+        <Route path="/contact" element={
+          <Contact contactPhone={contactPhone} whatsappMessage={whatsappMessage} />
+        } />
+        <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+
+        <Route element={<ProtectedRoute />}>
+          <Route path="/admin" element={
+            <AdminLayout
+              isAdminDarkMode={isAdminDarkMode}
+              isSidebarOpen={isSidebarOpen}
+              setIsSidebarOpen={setIsSidebarOpen}
+            />
+          }>
+            <Route index element={<Navigate to="inventory" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="sales" element={<Sales />} />
+            <Route path="settings" element={
+              <Settings
+                isAdminDarkMode={isAdminDarkMode}
+                setIsAdminDarkMode={handleSetDarkMode}
+                contactPhone={contactPhone}
+                setContactPhone={setContactPhone}
+                whatsappMessage={whatsappMessage}
+                setWhatsappMessage={setWhatsappMessage}
+              />
+            } />
+          </Route>
+        </Route>
+      </Routes>
+
+      <Footer />
+
+      {sweeping && (
+        <div
+          className="theme-sweep fixed inset-0 z-[9999] pointer-events-none"
+          style={{ background: sweepTarget ? '#0A0A0A' : '#FAFAFA' }}
+        />
+      )}
+    </>
+  );
+}
+
+function App() {
+  return (
     <AuthProvider>
       <BrowserRouter>
-        <Navbar isAdminDarkMode={isAdminDarkMode} />
-
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/producto/:slug" element={<ProductDetail />} />
-          <Route path="/contact" element={
-            <Contact contactPhone={contactPhone} whatsappMessage={whatsappMessage} />
-          } />
-          <Route path="/login" element={<Login />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-
-          <Route element={<ProtectedRoute />}>
-            <Route path="/admin" element={<AdminLayout isAdminDarkMode={isAdminDarkMode} />}>
-              <Route index element={<Navigate to="inventory" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="sales" element={<Sales />} />
-              <Route path="settings" element={
-                <Settings
-                  isAdminDarkMode={isAdminDarkMode}
-                  setIsAdminDarkMode={handleSetDarkMode}
-                  contactPhone={contactPhone}
-                  setContactPhone={setContactPhone}
-                  whatsappMessage={whatsappMessage}
-                  setWhatsappMessage={setWhatsappMessage}
-                />
-              } />
-            </Route>
-          </Route>
-        </Routes>
-        <Footer />
-
-        {sweeping && (
-          <div
-            className="theme-sweep fixed inset-0 z-[9999] pointer-events-none"
-            style={{ background: sweepTarget ? '#0A0A0A' : '#FAFAFA' }}
-          />
-        )}
+        <AppContent />
       </BrowserRouter>
     </AuthProvider>
   );

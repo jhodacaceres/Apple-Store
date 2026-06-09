@@ -1,24 +1,30 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { MagnifyingGlass, SquaresFour, ShoppingBag, SignOut, House, GridFour, ChatCircle } from '@phosphor-icons/react';
+import { Link, useLocation } from 'react-router-dom';
+import { SquaresFour, ShoppingBag, House, GridFour, ChatCircle } from '@phosphor-icons/react';
+import { Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface NavbarProps {
   isAdminDarkMode?: boolean;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
 }
 
-export default function Navbar({ isAdminDarkMode = false }: NavbarProps) {
+function getNavInitials(name: string | null | undefined, email: string | null | undefined): string {
+  if (name && name.trim()) {
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : parts[0].slice(0, 2).toUpperCase();
+  }
+  return email?.slice(0, 2).toUpperCase() ?? 'AZ';
+}
+
+export default function Navbar({ isAdminDarkMode = false, isSidebarOpen = false, onToggleSidebar }: NavbarProps) {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user, profile } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isLoginRoute = location.pathname === '/login';
 
   const isActive = (path: string) => location.pathname === path;
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
+  const initials = getNavInitials(profile?.full_name, user?.email);
 
   return (
     <>
@@ -44,8 +50,17 @@ export default function Navbar({ isAdminDarkMode = false }: NavbarProps) {
 
           {isAdminRoute ? (
             <nav className="flex items-center gap-4">
+              {/* Hamburger — solo mobile */}
+              <button
+                className={`md:hidden p-1.5 rounded-lg transition-colors ${isAdminDarkMode ? 'text-white/70 hover:bg-white/10' : 'text-gray-600 hover:bg-gray-100'}`}
+                onClick={onToggleSidebar}
+                aria-label="Abrir menú"
+              >
+                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
               <Link to="/" className={`flex items-center gap-2 text-sm font-medium transition-colors ${isAdminDarkMode ? 'text-white/60 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>
-                <ShoppingBag className="w-4 h-4" /> Volver a la tienda
+                <ShoppingBag className="w-4 h-4" />
+                <span className="hidden sm:inline">Volver a la tienda</span>
               </Link>
             </nav>
           ) : (
@@ -68,12 +83,6 @@ export default function Navbar({ isAdminDarkMode = false }: NavbarProps) {
           )}
 
           <div className="flex items-center gap-3">
-            {!isAdminRoute && !isLoginRoute && (
-              <button className="p-2 hover:bg-white/10 rounded-full transition-colors hidden sm:block">
-                <MagnifyingGlass className="w-5 h-5 text-white/60" />
-              </button>
-            )}
-
             {!isAdminRoute && !isLoginRoute && !user && (
               <Link
                 to="/admin"
@@ -95,18 +104,17 @@ export default function Navbar({ isAdminDarkMode = false }: NavbarProps) {
             )}
 
             {isAdminRoute && (
-              <button
-                onClick={handleSignOut}
-                className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-xs border transition-all duration-200 group ${
+              <Link
+                to="/admin/settings"
+                className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-xs border transition-all duration-200 ${
                   isAdminDarkMode
-                    ? 'bg-white/10 border-white/20 text-white hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30'
-                    : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
+                    ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
+                    : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'
                 }`}
-                title="Cerrar sesión"
+                title="Configuración"
               >
-                <span className="group-hover:hidden">AZ</span>
-                <SignOut className="w-4 h-4 hidden group-hover:block" />
-              </button>
+                {initials}
+              </Link>
             )}
           </div>
         </div>

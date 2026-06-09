@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Save, Phone, Moon, Sun, Info, BookOpen, CheckCircle,
-  Users, Plus, X, Trash2, RotateCcw, Shield, ShieldOff, KeyRound,
+  Users, Plus, X, Trash2, RotateCcw, Shield, ShieldOff, KeyRound, LogOut,
 } from 'lucide-react';
 import { useSettings } from '../../hooks/useSettings';
 import { useUsers } from '../../hooks/useUsers';
@@ -179,7 +180,8 @@ export default function Settings({
   whatsappMessage, setWhatsappMessage,
 }: SettingsProps) {
   const { settings, saveSettings } = useSettings();
-  const { user, profile }          = useAuth();
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
   const { users, loading: loadingUsers, loadUsers, softDeleteUser, restoreUser, hardDeleteUser, createUser, setAdminRole, sendPasswordReset } = useUsers();
 
   const [phone, setPhone]         = useState(contactPhone);
@@ -217,6 +219,11 @@ export default function Settings({
   const handleResetPassword = async (email: string) => {
     const err = await sendPasswordReset(email);
     if (!err) { setResetSent(email); setTimeout(() => setResetSent(''), 4000); }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
   };
 
   const handleSoftDelete  = async (id: string) => { await softDeleteUser(id); };
@@ -336,6 +343,25 @@ export default function Settings({
 
             <div className={`h-px ${isAdminDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`} />
 
+            {/* Cerrar sesión */}
+            <div className="py-6">
+              <h3 className="text-base font-bold flex items-center gap-2 mb-4">
+                <LogOut className="w-4 h-4" />Sesión
+              </h3>
+              <div className={`flex items-center justify-between p-4 rounded-xl border ${isAdminDarkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-100'}`}>
+                <div>
+                  <p className="font-semibold text-sm">Cerrar sesión</p>
+                  <p className="text-xs mt-0.5 text-gray-400">{user?.email}</p>
+                </div>
+                <button type="button" onClick={handleSignOut}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold transition-all bg-red-50 border border-red-200 hover:bg-red-100 text-red-600">
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+
+            <div className={`h-px ${isAdminDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`} />
+
             {/* Instrucciones */}
             <div className="py-6">
               <h3 className="text-base font-bold flex items-center gap-2 mb-4">
@@ -345,7 +371,7 @@ export default function Settings({
                 {[
                   ['Inventario', 'Agrega iPhones, edita precios o elimina equipos.'],
                   ['Ventas', 'Registra cada venta. El equipo se marca automáticamente como vendido.'],
-                  ['Cerrar Sesión', 'Haz clic en las iniciales "AZ" en la barra superior derecha.'],
+                  ['Cerrar Sesión', 'Ve a Configuración → sección "Sesión" y haz clic en "Cerrar sesión".'],
                   ['Restablecimiento de contraseña', 'Supabase permite enviar máximo 2 correos por hora por dirección. Si el enlace no llega, espera antes de reenviar.'],
                 ].map(([title, desc]) => (
                   <p key={title} className="flex gap-2 items-start">
@@ -411,31 +437,6 @@ export default function Settings({
             </div>
           )}
 
-          {confirmResetEmail && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">
-                  <KeyRound className="w-5 h-5 text-blue-500" />
-                </div>
-                <h3 className="font-black text-lg mb-2 text-[#0A0A0A]">Enviar enlace de restablecimiento</h3>
-                <p className="text-sm text-gray-400 mb-3">{confirmResetEmail}</p>
-                <p className="text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2 mb-6">
-                  Supabase limita el envío a 2 correos por hora. Confirma solo si es necesario.
-                </p>
-                <div className="flex gap-3">
-                  <button onClick={() => setConfirmResetEmail(null)}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100">
-                    Cancelar
-                  </button>
-                  <button onClick={() => { handleResetPassword(confirmResetEmail); setConfirmResetEmail(null); }}
-                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700">
-                    Confirmar envío
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-bold text-base flex items-center gap-2">
@@ -481,6 +482,32 @@ export default function Settings({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal confirmación reset — disponible en ambas pestañas */}
+      {confirmResetEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">
+              <KeyRound className="w-5 h-5 text-blue-500" />
+            </div>
+            <h3 className="font-black text-lg mb-2 text-[#0A0A0A]">Enviar enlace de restablecimiento</h3>
+            <p className="text-sm text-gray-400 mb-3">{confirmResetEmail}</p>
+            <p className="text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2 mb-6">
+              Supabase limita el envío a 2 correos por hora. Confirma solo si es necesario.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmResetEmail(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100">
+                Cancelar
+              </button>
+              <button onClick={() => { handleResetPassword(confirmResetEmail); setConfirmResetEmail(null); }}
+                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700">
+                Confirmar envío
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
