@@ -120,8 +120,8 @@ export default function Sales() {
     addOrder, updateOrder, cancelOrder,
     restoreOrder, hardDeleteOrder, loadDeletedOrders, reload,
   } = useOrders();
-  const { products: phones }       = useProducts('phone');
-  const { products: macs }         = useProducts('mac');
+  const { products: phones, reload: reloadPhones } = useProducts('phone');
+  const { products: macs,   reload: reloadMacs   } = useProducts('mac');
   const { products: catalogItems } = useCatalogProducts();
 
   // ── Caché inicial ──
@@ -227,6 +227,8 @@ export default function Sales() {
       setModalOpen(false);
       setForm(EMPTY_FORM);
       reload();
+      reloadPhones();
+      reloadMacs();
     }
     setSaving(false);
   };
@@ -252,8 +254,16 @@ export default function Sales() {
 
   const handleDelete = async () => {
     if (!deleteOrder) return;
-    await cancelOrder(deleteOrder.id);
+    await cancelOrder(deleteOrder);
+    reloadPhones();
+    reloadMacs();
     setDeleteOrder(null);
+  };
+
+  const handleRestore = async (order: Order) => {
+    await restoreOrder(order);
+    reloadPhones();
+    reloadMacs();
   };
 
   const handleHardDelete = async () => {
@@ -767,7 +777,7 @@ export default function Sales() {
                         {o.deleted_at ? new Date(o.deleted_at).toLocaleDateString('es-BO') : '—'}
                       </td>
                       <td className={`${tdClass} flex items-center gap-1`}>
-                        <button onClick={() => restoreOrder(o.id)}
+                        <button onClick={() => handleRestore(o)}
                           className="p-1.5 hover:bg-gray-100/20 rounded-lg transition-colors text-gray-400 hover:text-emerald-500" title="Recuperar">
                           <RotateCcw className="w-4 h-4" />
                         </button>

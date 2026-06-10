@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { SquaresFour, ShoppingBag, House, GridFour, ChatCircle } from '@phosphor-icons/react';
 import { Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,22 +10,58 @@ interface NavbarProps {
   onToggleSidebar?: () => void;
 }
 
-function getNavInitials(name: string | null | undefined, email: string | null | undefined): string {
-  if (name && name.trim()) {
-    const parts = name.trim().split(/\s+/);
-    return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : parts[0].slice(0, 2).toUpperCase();
-  }
-  return email?.slice(0, 2).toUpperCase() ?? 'AZ';
-}
+const SECTIONS = ['inicio', 'catalogo', 'contacto'] as const;
+type SectionId = typeof SECTIONS[number];
 
 export default function Navbar({ isAdminDarkMode = false, isSidebarOpen = false, onToggleSidebar }: NavbarProps) {
   const location = useLocation();
-  const { user, profile } = useAuth();
+  const navigate  = useNavigate();
+  const { user } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isLoginRoute = location.pathname === '/login';
+  const isLanding    = location.pathname === '/';
 
-  const isActive = (path: string) => location.pathname === path;
-  const initials = getNavInitials(profile?.full_name, user?.email);
+  const [activeSection, setActiveSection] = useState<SectionId>('inicio');
+
+  // Detectar sección activa por posición de scroll
+  useEffect(() => {
+    if (!isLanding) return;
+    const handleScroll = () => {
+      let current: SectionId = 'inicio';
+      let maxVisible = 0;
+      for (const id of SECTIONS) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const { top, bottom } = el.getBoundingClientRect();
+        const visible = Math.max(0, Math.min(bottom, window.innerHeight) - Math.max(top, 0));
+        if (visible > maxVisible) { maxVisible = visible; current = id; }
+      }
+      setActiveSection(current);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLanding]);
+
+  const scrollToSection = useCallback((id: SectionId) => {
+    setActiveSection(id);
+    if (isLanding) {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate('/');
+      setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+      }, 120);
+    }
+  }, [isLanding, navigate]);
+
+  const navItems = [
+    { id: 'inicio'   as SectionId, label: 'Inicio',   Icon: House      },
+    { id: 'catalogo' as SectionId, label: 'Catálogo', Icon: GridFour   },
+    { id: 'contacto' as SectionId, label: 'Contacto', Icon: ChatCircle },
+  ];
+
+  const isActive = (id: SectionId) => isLanding ? activeSection === id : false;
 
   return (
     <>
@@ -36,7 +73,7 @@ export default function Navbar({ isAdminDarkMode = false, isSidebarOpen = false,
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <button onClick={() => scrollToSection('inicio')} className="flex items-center gap-2">
             <img
               src="/logo-mark.png"
               alt="Apple Zone"
@@ -46,18 +83,10 @@ export default function Navbar({ isAdminDarkMode = false, isSidebarOpen = false,
             <span className={`text-lg font-black tracking-tight hidden sm:inline ${isAdminRoute && !isAdminDarkMode ? 'text-[#0A0A0A]' : 'text-white'}`}>
               Apple<span className={isAdminRoute && !isAdminDarkMode ? 'text-gray-400' : 'text-white/40'}>Zone</span>
             </span>
-          </Link>
+          </button>
 
           {isAdminRoute ? (
-            <nav className="flex items-center gap-4">
-              {/* Hamburger — solo mobile */}
-              <button
-                className={`md:hidden p-1.5 rounded-lg transition-colors ${isAdminDarkMode ? 'text-white/70 hover:bg-white/10' : 'text-gray-600 hover:bg-gray-100'}`}
-                onClick={onToggleSidebar}
-                aria-label="Abrir menú"
-              >
-                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
+            <nav className="flex items-center">
               <Link to="/" className={`flex items-center gap-2 text-sm font-medium transition-colors ${isAdminDarkMode ? 'text-white/60 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}>
                 <ShoppingBag className="w-4 h-4" />
                 <span className="hidden sm:inline">Volver a la tienda</span>
@@ -66,23 +95,29 @@ export default function Navbar({ isAdminDarkMode = false, isSidebarOpen = false,
           ) : (
             !isLoginRoute && (
               <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-                {[
-                  { to: '/', label: 'Inicio' },
-                  { to: '/catalog', label: 'Catálogo' },
-                  { to: '/contact', label: 'Contacto' },
-                ].map(({ to, label }) => (
-                  <Link key={to} to={to} className="relative pb-0.5 group">
-                    <span className={isActive(to) ? 'font-bold text-white' : 'text-white/60 group-hover:text-white transition-colors duration-200'}>
+                {navItems.map(({ id, label }) => (
+                  <button key={id} onClick={() => scrollToSection(id)} className="relative pb-0.5 group">
+                    <span className={isActive(id) ? 'font-bold text-white' : 'text-white/60 group-hover:text-white transition-colors duration-200'}>
                       {label}
                     </span>
-                    <span className={`absolute bottom-0 left-0 h-0.5 bg-white rounded-full transition-all duration-300 ${isActive(to) ? 'w-full' : 'w-0 group-hover:w-full'}`} />
-                  </Link>
+                    <span className={`absolute bottom-0 left-0 h-0.5 bg-white rounded-full transition-all duration-300 ${isActive(id) ? 'w-full' : 'w-0 group-hover:w-full'}`} />
+                  </button>
                 ))}
               </nav>
             )
           )}
 
           <div className="flex items-center gap-3">
+            {isAdminRoute && (
+              <button
+                className={`md:hidden p-1.5 rounded-lg transition-colors ${isAdminDarkMode ? 'text-white/70 hover:bg-white/10' : 'text-gray-600 hover:bg-gray-100'}`}
+                onClick={onToggleSidebar}
+                aria-label="Abrir menú"
+              >
+                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            )}
+
             {!isAdminRoute && !isLoginRoute && !user && (
               <Link
                 to="/admin"
@@ -103,19 +138,6 @@ export default function Navbar({ isAdminDarkMode = false, isSidebarOpen = false,
               </Link>
             )}
 
-            {isAdminRoute && (
-              <Link
-                to="/admin/settings"
-                className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold text-xs border transition-all duration-200 ${
-                  isAdminDarkMode
-                    ? 'bg-white/10 border-white/20 text-white hover:bg-white/20'
-                    : 'bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200'
-                }`}
-                title="Configuración"
-              >
-                {initials}
-              </Link>
-            )}
           </div>
         </div>
       </header>
@@ -124,21 +146,17 @@ export default function Navbar({ isAdminDarkMode = false, isSidebarOpen = false,
       {!isAdminRoute && !isLoginRoute && (
         <footer className="md:hidden fixed bottom-0 w-full bg-zinc-950/95 backdrop-blur-sm border-t border-white/10 shadow-lg z-50">
           <div className="px-6 py-3 flex justify-around">
-            {[
-              { to: '/', label: 'Inicio', Icon: House },
-              { to: '/catalog', label: 'Catálogo', Icon: GridFour },
-              { to: '/contact', label: 'Contacto', Icon: ChatCircle },
-            ].map(({ to, label, Icon }) => (
-              <Link
-                key={to}
-                to={to}
+            {navItems.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                onClick={() => scrollToSection(id)}
                 className={`flex flex-col items-center gap-1 px-5 py-1.5 rounded-2xl text-xs font-semibold transition-all duration-200 ${
-                  isActive(to) ? 'bg-white text-zinc-950' : 'text-white/50 hover:text-white'
+                  isActive(id) ? 'bg-white text-zinc-950' : 'text-white/50 hover:text-white'
                 }`}
               >
                 <Icon className="w-5 h-5" />
                 {label}
-              </Link>
+              </button>
             ))}
           </div>
         </footer>

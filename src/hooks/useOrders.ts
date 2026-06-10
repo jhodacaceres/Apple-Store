@@ -16,7 +16,7 @@ type OrderInput = {
 type OrderUpdate = Partial<Pick<OrderInput, 'customer_name' | 'customer_phone' | 'total_price' | 'status' | 'notes'>>;
 
 // device_type se omite del join hasta que exista la columna (se agrega con mac_devices_migration.sql)
-const ORDER_SELECT = '*, products(model, color, capacity, deleted_at), catalog_products(nombre, precio, deleted_at, categoria), created_by_name';
+const ORDER_SELECT = '*, products(model, color, capacity, deleted_at, device_type), catalog_products(nombre, precio, deleted_at, categoria), created_by_name';
 
 export function useOrders() {
   const { user, profile } = useAuth();
@@ -74,26 +74,50 @@ export function useOrders() {
     return err;
   }, []);
 
-  const cancelOrder = useCallback(async (id: string) => {
+  const cancelOrder = useCallback(async (order: Order) => {
+    if (order.status === 'completed') {
+      if (order.product_id) {
+        await supabase.from('products').update({ status: 'available' }).eq('id', order.product_id);
+      } else if (order.catalog_product_id) {
+        const { data: acc } = await supabase
+          .from('catalog_products').select('stock').eq('id', order.catalog_product_id).single();
+        if (acc) {
+          await supabase.from('catalog_products').update({ stock: acc.stock + 1 }).eq('id', order.catalog_product_id);
+        }
+      }
+    }
     const { error: err } = await supabase
       .from('orders')
       .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', order.id);
     if (!err) {
-      setOrders((prev) => prev.filter((o) => o.id !== id));
+      setOrders((prev) => prev.filter((o) => o.id !== order.id));
     }
     return err;
   }, []);
 
-  const restoreOrder = useCallback(async (id: string) => {
+  const restoreOrder = useCallback(async (order: Order) => {
+    if (order.status === 'completed') {
+      if (order.product_id) {
+        await supabase.from('products').update({ status: 'sold' }).eq('id', order.product_id);
+      } else if (order.catalog_product_id) {
+        const { data: acc } = await supabase
+          .from('catalog_products').select('stock').eq('id', order.catalog_product_id).single();
+        if (acc) {
+          await supabase.from('catalog_products')
+            .update({ stock: Math.max(0, acc.stock - 1) })
+            .eq('id', order.catalog_product_id);
+        }
+      }
+    }
     const { data, error: err } = await supabase
       .from('orders')
       .update({ deleted_at: null })
-      .eq('id', id)
+      .eq('id', order.id)
       .select(ORDER_SELECT)
       .single();
     if (!err && data) {
-      setDeletedOrders((prev) => prev.filter((o) => o.id !== id));
+      setDeletedOrders((prev) => prev.filter((o) => o.id !== order.id));
       setOrders((prev) => [data as Order, ...prev]);
     }
     return err;

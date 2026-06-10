@@ -6,9 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { supabase } from './lib/supabase';
 
 import Home from './pages/Home';
-import Catalog from './pages/Catalog';
 import ProductDetail from './pages/ProductDetail';
-import Contact from './pages/Contact';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Navbar from './components/Navbar';
@@ -71,12 +69,10 @@ function AppContent() {
       />
 
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/catalog" element={<Catalog />} />
+        <Route path="/" element={<Home contactPhone={contactPhone} whatsappMessage={whatsappMessage} />} />
+        <Route path="/catalog" element={<Navigate to="/" replace />} />
         <Route path="/producto/:slug" element={<ProductDetail />} />
-        <Route path="/contact" element={
-          <Contact contactPhone={contactPhone} whatsappMessage={whatsappMessage} />
-        } />
+        <Route path="/contact" element={<Navigate to="/" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 

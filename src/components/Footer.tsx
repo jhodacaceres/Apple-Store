@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Clock, Truck, MapPin } from '@phosphor-icons/react';
 
 const TRUST = [
@@ -10,7 +10,17 @@ const TRUST = [
 
 export default function Footer() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   if (pathname.startsWith('/admin') || pathname === '/login') return null;
+
+  const scrollTo = (id: string) => {
+    if (pathname === '/') {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate('/');
+      setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }), 120);
+    }
+  };
 
   return (
     <footer className="bg-[#0A0A0A] border-t border-white/[0.06] py-10 pb-28 md:pb-10">
@@ -36,17 +46,17 @@ export default function Footer() {
 
           <nav className="flex items-center gap-5">
             {[
-              { to: '/',        label: 'Inicio'    },
-              { to: '/catalog', label: 'Catálogo'  },
-              { to: '/contact', label: 'Contacto'  },
-            ].map(({ to, label }) => (
-              <Link
-                key={to}
-                to={to}
+              { id: 'inicio',   label: 'Inicio'   },
+              { id: 'catalogo', label: 'Catálogo' },
+              { id: 'contacto', label: 'Contacto' },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => scrollTo(id)}
                 className="text-xs text-white/25 hover:text-white/50 transition-colors"
               >
                 {label}
-              </Link>
+              </button>
             ))}
           </nav>
 

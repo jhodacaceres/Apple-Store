@@ -57,7 +57,7 @@ export function useCatalogAdmin() {
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
     if (error) throw error;
-    setProducts(prev => prev.filter(p => p.id !== id));
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, deleted_at: new Date().toISOString() } : p));
   }
 
   async function toggleActive(id: string, activo: boolean) {

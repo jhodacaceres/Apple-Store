@@ -718,7 +718,7 @@ export default function Inventory() {
 
   // ── Estado celulares ──
   const [phoneQuery, setPhoneQuery]         = useState('');
-  const [phoneFilter, setPhoneFilter]       = useState<PhoneFilter>('activos');
+  const [phoneFilter, setPhoneFilter]       = useState<PhoneFilter>('todos');
   const [phoneModalOpen, setPhoneModalOpen] = useState(false);
   const [editPhone, setEditPhone]           = useState<Product | null>(null);
   const [phoneForm, setPhoneForm]           = useState<PhoneFormData>(EMPTY_PHONE_FORM);
@@ -728,7 +728,7 @@ export default function Inventory() {
 
   // ── Estado Macs ──
   const [macQuery, setMacQuery]         = useState('');
-  const [macFilter, setMacFilter]       = useState<PhoneFilter>('activos');
+  const [macFilter, setMacFilter]       = useState<PhoneFilter>('todos');
   const [macModalOpen, setMacModalOpen] = useState(false);
   const [editMac, setEditMac]           = useState<Product | null>(null);
   const [macForm, setMacForm]           = useState<PhoneFormData>(EMPTY_PHONE_FORM);
