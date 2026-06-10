@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCatalogProducts } from '../hooks/useCatalogProducts';
 import { getImageUrl, getPhoneImageUrl } from '../lib/storage';
 import { supabase } from '../lib/supabase';
+import { trackWhatsappClick } from '../lib/analytics';
 import OrderModal from '../components/OrderModal';
 import OrderSuccessOverlay from '../components/OrderSuccessOverlay';
 import type { CatalogProduct, CatalogCategoria, Product } from '../lib/types';
@@ -221,6 +222,7 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
   const [sending, setSending] = useState(false);
 
   const handleSend = () => {
+    trackWhatsappClick('home');
     window.open(whatsappUrl, '_blank');
     setSending(true);
   };

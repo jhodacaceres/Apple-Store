@@ -129,6 +129,7 @@ function PhoneFormModal({
 }) {
   const [imgTab, setImgTab]       = useState<'galeria' | 'subir'>('galeria');
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,10 +137,13 @@ function PhoneFormModal({
     if (!file) return;
     const key = form.imei || form.model.toLowerCase().replace(/\s+/g, '-') || 'device';
     setUploading(true);
+    setUploadError(null);
     try {
       const path = await uploadImage(file, key, deviceType === 'mac' ? 'macs' : 'celulares');
       onChange('image_path', path);
-    } catch { /* silent */ }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'No se pudo subir la imagen');
+    }
     setUploading(false);
   };
 
@@ -147,7 +151,7 @@ function PhoneFormModal({
 
   const FIELD      = fieldClass(dark);
   const previewUrl = form.image_path
-    ? storageImages.find((i) => i.path === form.image_path)?.publicUrl ?? ''
+    ? getPhoneImageUrl({ image_path: form.image_path, image_url: null }) ?? ''
     : form.image_url;
 
   const capacityLabel       = deviceType === 'mac' ? 'Almacenamiento' : 'Capacidad';
@@ -235,6 +239,9 @@ function PhoneFormModal({
                     ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />Subiendo…</>
                     : <><Upload className="w-4 h-4" />Seleccionar imagen</>}
                 </button>
+                {uploadError && (
+                  <p className="text-xs text-red-500 mt-2">{uploadError}</p>
+                )}
                 {!form.image_path && (
                   <div className="mt-2">
                     <label className="block text-xs text-gray-400 mb-1">O pega una URL directa</label>
@@ -312,16 +319,20 @@ function ProductFormModal({
 }) {
   const [imgTab, setImgTab]       = useState<'galeria' | 'subir'>('galeria');
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !form.sku || !form.categoria) return;
     setUploading(true);
+    setUploadError(null);
     try {
       const path = await uploadImage(file, form.sku, form.categoria);
       onChange('imagen_path', path);
-    } catch { /* silent */ }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'No se pudo subir la imagen');
+    }
     setUploading(false);
   };
 
@@ -329,7 +340,7 @@ function ProductFormModal({
 
   const FIELD      = fieldClass(dark);
   const previewUrl = form.imagen_path
-    ? storageImages.find((i) => i.path === form.imagen_path)?.publicUrl ?? ''
+    ? getImageUrl({ imagen_path: form.imagen_path, imagen_url: null }) ?? ''
     : form.imagen_url;
   const labelCls = `block text-xs font-semibold mb-1.5 ${dark ? 'text-gray-300' : 'text-gray-400'}`;
 
@@ -429,6 +440,9 @@ function ProductFormModal({
                     ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />Subiendo…</>
                     : <><Upload className="w-4 h-4" />{form.sku ? 'Seleccionar imagen' : 'Completa el SKU primero'}</>}
                 </button>
+                {uploadError && (
+                  <p className="text-xs text-red-500 mt-2">{uploadError}</p>
+                )}
                 {!form.imagen_path && (
                   <div className="mt-2">
                     <label className="block text-xs text-gray-400 mb-1">O pega una URL directa</label>

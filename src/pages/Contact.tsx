@@ -2,6 +2,7 @@ import { WhatsappLogo } from '@phosphor-icons/react';
 import { useLocation } from 'react-router-dom';
 import { useState, useCallback } from 'react';
 import OrderSuccessOverlay from '../components/OrderSuccessOverlay';
+import { trackWhatsappClick } from '../lib/analytics';
 
 interface ContactProps {
   contactPhone: string;
@@ -20,6 +21,7 @@ export default function Contact({ contactPhone, whatsappMessage }: ContactProps)
   const [sending, setSending] = useState(false);
 
   const handleSend = () => {
+    trackWhatsappClick('contact');
     window.open(whatsappUrl, '_blank');
     setSending(true);
   };

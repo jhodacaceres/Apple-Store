@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { supabase } from './lib/supabase';
+import { useAnalyticsTracker } from './hooks/useAnalyticsTracker';
 
 import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
@@ -16,10 +17,12 @@ import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import Inventory from './pages/admin/Inventory';
 import Sales from './pages/admin/Sales';
+import Metrics from './pages/admin/Metrics';
 import Settings from './pages/admin/Settings';
 
 function AppContent() {
   const location = useLocation();
+  useAnalyticsTracker();
   const [isAdminDarkMode, setIsAdminDarkMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen]     = useState(false);
   const [sweeping, setSweeping]               = useState(false);
@@ -88,6 +91,7 @@ function AppContent() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="sales" element={<Sales />} />
+            <Route path="metrics" element={<Metrics />} />
             <Route path="settings" element={
               <Settings
                 isAdminDarkMode={isAdminDarkMode}

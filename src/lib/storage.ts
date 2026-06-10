@@ -48,16 +48,30 @@ export interface StorageImage {
 }
 
 export async function listStorageImages(): Promise<StorageImage[]> {
-  const { data, error } = await supabase.storage.from(STORAGE_BUCKET).list('', {
-    limit: 200,
-    sortBy: { column: 'created_at', order: 'desc' },
-  });
-  if (error || !data) return [];
+  const listOpts = { limit: 200, sortBy: { column: 'created_at', order: 'desc' as const } };
 
-  return data
-    .filter((item) => item.name !== '.emptyFolderPlaceholder')
-    .map((item) => {
+  const { data: rootItems, error } = await supabase.storage.from(STORAGE_BUCKET).list('', listOpts);
+  if (error || !rootItems) return [];
+
+  const images: StorageImage[] = [];
+
+  for (const item of rootItems) {
+    if (item.name === '.emptyFolderPlaceholder') continue;
+
+    // En Supabase Storage las carpetas se devuelven con id === null.
+    if (item.id === null) {
+      const { data: subItems } = await supabase.storage.from(STORAGE_BUCKET).list(item.name, listOpts);
+      subItems?.forEach((file) => {
+        if (file.name === '.emptyFolderPlaceholder') return;
+        const path = `${item.name}/${file.name}`;
+        const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        images.push({ name: file.name, path, publicUrl: urlData.publicUrl });
+      });
+    } else {
       const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(item.name);
-      return { name: item.name, path: item.name, publicUrl: urlData.publicUrl };
-    });
+      images.push({ name: item.name, path: item.name, publicUrl: urlData.publicUrl });
+    }
+  }
+
+  return images;
 }

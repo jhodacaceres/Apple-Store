@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Minus, Plus } from '@phosphor-icons/react';
 import { buildOrderWhatsappUrl } from '../lib/whatsapp';
+import { trackWhatsappClick } from '../lib/analytics';
 import { getImageUrl } from '../lib/storage';
 import { useSettings } from '../hooks/useSettings';
 import WhatsAppIcon from './WhatsAppIcon';
@@ -68,6 +69,7 @@ export default function OrderModal({ product, onClose, currencySymbol = 'bs' }: 
     if (!canSubmit) return;
     const phone = settings?.contact_phone ?? '59168531959';
     const url = buildOrderWhatsappUrl(phone, product, form, currencySymbol);
+    trackWhatsappClick('order_modal', product.nombre);
     window.open(url, '_blank');
     setShowSuccess(true);
   };

@@ -3,6 +3,7 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import { CaretLeft, ShoppingBag } from '@phosphor-icons/react';
 import { supabase } from '../lib/supabase';
 import { getImageUrl } from '../lib/storage';
+import { trackProductView } from '../lib/analytics';
 import OrderModal from '../components/OrderModal';
 import type { CatalogProduct } from '../lib/types';
 
@@ -32,7 +33,10 @@ export default function ProductDetail() {
       .single()
       .then(({ data, error }) => {
         if (error || !data) setNotFound(true);
-        else setProduct(data as CatalogProduct);
+        else {
+          setProduct(data as CatalogProduct);
+          trackProductView((data as CatalogProduct).nombre);
+        }
         setLoading(false);
       });
   }, [slug]);

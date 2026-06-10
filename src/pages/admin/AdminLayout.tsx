@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Settings as SettingsIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface AdminLayoutProps {
@@ -89,6 +89,9 @@ export default function AdminLayout({ isAdminDarkMode, isSidebarOpen, setIsSideb
             </NavLink>
             <NavLink to="/admin/sales" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
               <ShoppingCart className="w-4 h-4 flex-shrink-0" /> Ventas
+            </NavLink>
+            <NavLink to="/admin/metrics" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
+              <TrendingUp className="w-4 h-4 flex-shrink-0" /> Métricas
             </NavLink>
             <NavLink to="/admin/settings" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
               <SettingsIcon className="w-4 h-4 flex-shrink-0" /> Configuración

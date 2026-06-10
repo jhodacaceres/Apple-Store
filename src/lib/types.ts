@@ -71,6 +71,31 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface AnalyticsSummary {
+  total_visits: number;
+  unique_visitors: number;
+  avg_duration_seconds: number;
+  bounce_rate: number;       // %
+  whatsapp_clicks: number;
+  conversion_rate: number;   // %
+}
+
+export interface VisitsByDay {
+  day: string;   // YYYY-MM-DD
+  visits: number;
+}
+
+export interface TopProduct {
+  product: string;
+  views: number;
+}
+
+export interface StorageStats {
+  storage_bytes: number;
+  storage_objects: number;
+  db_bytes: number;
+}
+
 export type OrderOption = 'retirar' | 'envio' | 'info';
 
 export interface OrderForm {

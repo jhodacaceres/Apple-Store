@@ -581,3 +581,40 @@ LEFT JOIN profiles p ON p.id = u.id;
 | `orders` | `authenticated` | SELECT / INSERT / UPDATE | cualquier empleado |
 | `settings` | `anon` | SELECT | sin restricción |
 | `settings` | `authenticated` | SELECT / UPDATE | cualquier empleado |
+
+---
+
+## Fase 3 — Analítica de visitantes y espacio
+
+Habilita la sección **Métricas** del panel admin: visitas, tiempo de permanencia,
+clics de WhatsApp, productos más vistos, tasa de conversión/rebote y uso de espacio
+(Storage + base de datos).
+
+**Ejecutar una sola vez** el archivo `supabase/analytics_phase3.sql`:
+
+1. Abre **Supabase Dashboard → SQL Editor**.
+2. Copia y pega TODO el contenido de `supabase/analytics_phase3.sql`.
+3. Haz clic en **Run**.
+
+> Alternativa: aplicarlo con el MCP de Supabase (`apply_migration`).
+
+### Qué crea
+
+- **Tablas:** `analytics_sessions` (una fila por visita; duración = `last_seen_at - started_at`)
+  y `analytics_events` (eventos `page_view` / `whatsapp_click` / `product_view`).
+- **RPC de escritura** (anon, `SECURITY DEFINER`, cuerpo acotado): `track_session_start`,
+  `track_ping`, `track_event`. El visitante anónimo solo dispara estas operaciones; no lee datos.
+- **RPC de lectura** (solo `authenticated`): `get_analytics_summary`, `get_visits_by_day`,
+  `get_top_products`, `get_storage_stats`.
+
+### Políticas (Fase 3)
+
+| Tabla / Función | Rol | Operación | Condición |
+|---|---|---|---|
+| `analytics_sessions` / `analytics_events` | `authenticated` | SELECT | sin restricción (admin/empleado) |
+| `analytics_sessions` / `analytics_events` | `anon` | INSERT/UPDATE | **denegado** (solo vía RPC) |
+| `track_*` (escritura) | `anon`, `authenticated` | EXECUTE | sí |
+| `get_*` (lectura/espacio) | `authenticated` | EXECUTE | sí |
+
+> El medidor de espacio asume el **plan Free** (1 GB Storage, 500 MB base de datos).
+> Si cambias de plan, ajusta `STORAGE_LIMIT_BYTES` / `DB_LIMIT_BYTES` en `src/pages/admin/Metrics.tsx`.
