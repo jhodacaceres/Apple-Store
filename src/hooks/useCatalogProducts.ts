@@ -4,7 +4,8 @@ import type { CatalogProduct } from '../lib/types';
 
 export function useCatalogProducts() {
   const [products, setProducts] = useState<CatalogProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -15,11 +16,10 @@ export function useCatalogProducts() {
       .eq('activo', true)
       .order('categoria')
       .order('nombre')
-      .then(({ data, error }) => {
+      .then(({ data, error: err }) => {
         if (!isMounted) return;
-        if (!error && data) {
-          setProducts(data as CatalogProduct[]);
-        }
+        if (err) setError(err.message);
+        else if (data) setProducts(data as CatalogProduct[]);
         setLoading(false);
       });
 
@@ -56,5 +56,5 @@ export function useCatalogProducts() {
     };
   }, []);
 
-  return { products, loading };
+  return { products, loading, error };
 }

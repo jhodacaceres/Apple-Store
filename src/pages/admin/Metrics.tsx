@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import {
-  Users, UserCheck, Clock, MessageCircle, LogOut, Calendar, RotateCcw,
-  HardDrive, Database, Eye, TrendingUp,
-} from 'lucide-react';
+  Users, UserCheck, Clock, ChatCircle, SignOut, Calendar, ArrowCounterClockwise,
+  HardDrive, Database, Eye, TrendUp,
+} from '@phosphor-icons/react';
+import { useAdminTheme } from '../../contexts/AdminThemeContext';
 import { useAnalytics } from '../../hooks/useAnalytics';
 
 // Límites del plan Free de Supabase (configurables si cambias de plan).
@@ -55,7 +55,7 @@ function gaugeState(pct: number) {
 }
 
 export default function Metrics() {
-  const { isAdminDarkMode } = useOutletContext<{ isAdminDarkMode: boolean }>();
+  const { isAdminDarkMode } = useAdminTheme();
   const [dateRange, setDateRange] = useState(last30Days);
   const { summary, visitsByDay, topProducts, storage, loading } = useAnalytics(dateRange);
 
@@ -70,8 +70,8 @@ export default function Metrics() {
     { title: 'Visitas',          value: String(summary?.total_visits ?? 0),                       sub: 'En el período',                                  icon: Users,         color: 'blue'    },
     { title: 'Visitantes únicos', value: String(summary?.unique_visitors ?? 0),                   sub: 'Personas distintas',                             icon: UserCheck,     color: 'violet'  },
     { title: 'Permanencia media', value: formatDuration(summary?.avg_duration_seconds ?? 0),      sub: 'Tiempo por visita',                              icon: Clock,         color: 'amber'   },
-    { title: 'Clics WhatsApp',    value: String(summary?.whatsapp_clicks ?? 0),                   sub: `${summary?.conversion_rate ?? 0}% de conversión`, icon: MessageCircle, color: 'emerald' },
-    { title: 'Tasa de rebote',    value: `${summary?.bounce_rate ?? 0}%`,                          sub: 'Entran y se van',                                icon: LogOut,        color: 'rose'    },
+    { title: 'Clics WhatsApp',    value: String(summary?.whatsapp_clicks ?? 0),                   sub: `${summary?.conversion_rate ?? 0}% de conversión`, icon: ChatCircle, color: 'emerald' },
+    { title: 'Tasa de rebote',    value: `${summary?.bounce_rate ?? 0}%`,                          sub: 'Entran y se van',                                icon: SignOut,    color: 'rose'    },
   ];
 
   const maxVisits = Math.max(1, ...visitsByDay.map((d) => d.visits));
@@ -106,7 +106,7 @@ export default function Metrics() {
             title="Últimos 30 días"
             className={`p-2 rounded-xl transition-colors ${dark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-400'}`}
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <ArrowCounterClockwise className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -172,7 +172,7 @@ export default function Metrics() {
                 <div className="w-5 h-5 border-2 border-[#0A0A0A] border-t-transparent rounded-full animate-spin" />
               </div>
             ) : visitsByDay.length === 0 ? (
-              <EmptyState icon={TrendingUp} text="Sin visitas en el período" />
+              <EmptyState icon={TrendUp} text="Sin visitas en el período" />
             ) : (
               <div className="flex items-end gap-1.5 h-40 overflow-x-auto">
                 {visitsByDay.map((d) => (

@@ -1,31 +1,21 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { MagnifyingGlass, Package, ShoppingBag } from "@phosphor-icons/react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { MagnifyingGlass, Package, ShoppingBag, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { useCatalogProducts } from "../hooks/useCatalogProducts";
 import { getImageUrl, getPhoneImageUrl } from "../lib/storage";
 import { supabase } from "../lib/supabase";
+import { readCache, writeCache } from "../lib/cache";
 import OrderModal from "../components/OrderModal";
 import type { CatalogProduct, CatalogCategoria, Product } from "../lib/types";
 
 // ──────────────────────────────────────────────────────────
-// Caché y paginación
+// Paginación
 // ──────────────────────────────────────────────────────────
 const PAGE_SIZE = 8;
 const CK_ACC    = 'az_cat_acc_v1';
 const CK_PHONES = 'az_cat_phones_v1';
 
-function readCache<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? ((JSON.parse(raw) as { data: T[] }).data ?? []) : [];
-  } catch { return []; }
-}
-function writeCache<T>(key: string, data: T[]) {
-  try { localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch {}
-}
-
-function Pagination({ page, total, onPrev, onNext }: {
+function CatalogPagination({ page, total, onPrev, onNext }: {
   page: number; total: number;
   onPrev: () => void; onNext: () => void;
 }) {
@@ -39,10 +29,10 @@ function Pagination({ page, total, onPrev, onNext }: {
       <span>{start}–{end} de {total}</span>
       <div className="flex gap-1">
         <button onClick={onPrev} disabled={page === 0} className={btn}>
-          <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+          <CaretLeft className="w-3.5 h-3.5" /> Anterior
         </button>
         <button onClick={onNext} disabled={page >= pages - 1} className={btn}>
-          Siguiente <ChevronRight className="w-3.5 h-3.5" />
+          Siguiente <CaretRight className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
@@ -284,7 +274,7 @@ export default function Catalog() {
                       );
                     })}
                   </div>
-                  <Pagination page={accPage} total={filtered.length}
+                  <CatalogPagination page={accPage} total={filtered.length}
                     onPrev={() => setAccPage(p => p - 1)} onNext={() => setAccPage(p => p + 1)} />
                 </>
               )}
@@ -337,7 +327,7 @@ export default function Catalog() {
                   );
                 })}
               </div>
-              <Pagination page={phonePage} total={actualPhones.length}
+              <CatalogPagination page={phonePage} total={actualPhones.length}
                 onPrev={() => setPhonePage(p => p - 1)} onNext={() => setPhonePage(p => p + 1)} />
             </div>
           ) : null)}
@@ -381,7 +371,7 @@ export default function Catalog() {
                   );
                 })}
               </div>
-              <Pagination page={macPage} total={actualMacs.length}
+              <CatalogPagination page={macPage} total={actualMacs.length}
                 onPrev={() => setMacPage(p => p - 1)} onNext={() => setMacPage(p => p + 1)} />
             </div>
           )}

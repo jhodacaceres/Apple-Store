@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, X } from 'lucide-react';
+import { DownloadSimple, X } from '@phosphor-icons/react';
 
 interface Props {
   title?: string;
@@ -68,7 +68,7 @@ export default function DateRangeModal({ title = 'Exportar Excel', onExport, onC
           </button>
           <button onClick={handleExport}
             className="px-6 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-sm font-semibold hover:bg-gray-800 transition-all active:scale-[0.98] flex items-center gap-2">
-            <Download className="w-4 h-4" />
+            <DownloadSimple className="w-4 h-4" />
             Descargar
           </button>
         </div>

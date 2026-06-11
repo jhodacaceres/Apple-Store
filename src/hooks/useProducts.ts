@@ -5,9 +5,9 @@ import type { Product } from '../lib/types';
 type ProductInput = Omit<Product, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>;
 
 export function useProducts(deviceType: 'phone' | 'mac' = 'phone') {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts]               = useState<Product[]>([]);
   const [deletedProducts, setDeletedProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]                 = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -21,7 +21,59 @@ export function useProducts(deviceType: 'phone' | 'mac' = 'phone') {
     setLoading(false);
   }, [deviceType]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase
+      .from('products')
+      .select('*')
+      .is('deleted_at', null)
+      .eq('device_type', deviceType)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        if (!error && data) setProducts(data as Product[]);
+        setLoading(false);
+      });
+
+    const channel = supabase
+      .channel(`products_realtime_${deviceType}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          if (!isMounted) return;
+          if (payload.eventType === 'INSERT') {
+            const inserted = payload.new as Product;
+            if (!inserted.deleted_at && inserted.device_type === deviceType) {
+              setProducts((prev) => [inserted, ...prev]);
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as Product;
+            if (updated.device_type !== deviceType) return;
+            if (updated.deleted_at) {
+              setProducts((prev) => prev.filter((p) => p.id !== updated.id));
+            } else {
+              setProducts((prev) =>
+                prev.some((p) => p.id === updated.id)
+                  ? prev.map((p) => (p.id === updated.id ? updated : p))
+                  : [updated, ...prev],
+              );
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const id = (payload.old as { id: string }).id;
+            setProducts((prev) => prev.filter((p) => p.id !== id));
+            setDeletedProducts((prev) => prev.filter((p) => p.id !== id));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [deviceType]);
 
   const loadDeletedProducts = useCallback(async () => {
     const { data } = await supabase

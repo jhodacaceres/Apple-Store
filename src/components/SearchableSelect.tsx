@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { CaretDown, X } from '@phosphor-icons/react';
 
 interface Option {
   id: string;
@@ -73,7 +73,7 @@ export default function SearchableSelect({
               <X className="w-3 h-3 text-gray-400" />
             </button>
           )}
-          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+          <CaretDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
         </div>
       </div>
 

@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, TrendingUp, Settings as SettingsIcon } from 'lucide-react';
+import { SquaresFour, Package, ShoppingCart, TrendUp, Gear } from '@phosphor-icons/react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAdminTheme } from '../../contexts/AdminThemeContext';
 
 interface AdminLayoutProps {
-  isAdminDarkMode: boolean;
   isSidebarOpen: boolean;
   setIsSidebarOpen: (val: boolean) => void;
 }
@@ -19,8 +19,9 @@ function getInitials(name: string | null | undefined, email: string | null | und
   return 'AZ';
 }
 
-export default function AdminLayout({ isAdminDarkMode, isSidebarOpen, setIsSidebarOpen }: AdminLayoutProps) {
+export default function AdminLayout({ isSidebarOpen, setIsSidebarOpen }: AdminLayoutProps) {
   const { user, profile } = useAuth();
+  const { isAdminDarkMode } = useAdminTheme();
 
   const displayName  = profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Usuario';
   const displayEmail = user?.email || '';
@@ -82,7 +83,7 @@ export default function AdminLayout({ isAdminDarkMode, isSidebarOpen, setIsSideb
           </div>
           <nav className="space-y-1">
             <NavLink to="/admin/dashboard" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
-              <LayoutDashboard className="w-4 h-4 flex-shrink-0" /> Dashboard
+              <SquaresFour className="w-4 h-4 flex-shrink-0" /> Dashboard
             </NavLink>
             <NavLink to="/admin/inventory" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
               <Package className="w-4 h-4 flex-shrink-0" /> Inventario
@@ -91,10 +92,10 @@ export default function AdminLayout({ isAdminDarkMode, isSidebarOpen, setIsSideb
               <ShoppingCart className="w-4 h-4 flex-shrink-0" /> Ventas
             </NavLink>
             <NavLink to="/admin/metrics" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
-              <TrendingUp className="w-4 h-4 flex-shrink-0" /> Métricas
+              <TrendUp className="w-4 h-4 flex-shrink-0" /> Métricas
             </NavLink>
             <NavLink to="/admin/settings" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
-              <SettingsIcon className="w-4 h-4 flex-shrink-0" /> Configuración
+              <Gear className="w-4 h-4 flex-shrink-0" /> Configuración
             </NavLink>
           </nav>
         </div>
@@ -113,7 +114,7 @@ export default function AdminLayout({ isAdminDarkMode, isSidebarOpen, setIsSideb
 
       {/* Contenedor Principal */}
       <div className="flex-1 p-5 md:p-10 overflow-auto w-full">
-        <Outlet context={{ isAdminDarkMode }} />
+        <Outlet />
       </div>
     </div>
   );

@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { SquaresFour, ShoppingBag, House, GridFour, ChatCircle } from '@phosphor-icons/react';
-import { Menu, X } from 'lucide-react';
+import { SquaresFour, ShoppingBag, House, GridFour, ChatCircle, List, X } from '@phosphor-icons/react';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdminTheme } from '../contexts/AdminThemeContext';
 
 interface NavbarProps {
-  isAdminDarkMode?: boolean;
   isSidebarOpen?: boolean;
   onToggleSidebar?: () => void;
 }
@@ -13,10 +12,11 @@ interface NavbarProps {
 const SECTIONS = ['inicio', 'catalogo', 'contacto'] as const;
 type SectionId = typeof SECTIONS[number];
 
-export default function Navbar({ isAdminDarkMode = false, isSidebarOpen = false, onToggleSidebar }: NavbarProps) {
+export default function Navbar({ isSidebarOpen = false, onToggleSidebar }: NavbarProps) {
   const location = useLocation();
   const navigate  = useNavigate();
   const { user } = useAuth();
+  const { isAdminDarkMode } = useAdminTheme();
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isLoginRoute = location.pathname === '/login';
   const isLanding    = location.pathname === '/';
@@ -114,7 +114,7 @@ export default function Navbar({ isAdminDarkMode = false, isSidebarOpen = false,
                 onClick={onToggleSidebar}
                 aria-label="Abrir menú"
               >
-                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {isSidebarOpen ? <X className="w-5 h-5" /> : <List className="w-5 h-5" />}
               </button>
             )}
 

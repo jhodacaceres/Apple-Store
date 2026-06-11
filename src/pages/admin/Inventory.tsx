@@ -1,14 +1,16 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
-  Plus, Search, Pencil, Trash2, Package, X,
-  Download, Eye, EyeOff, Image, Upload, ChevronDown,
-  Smartphone, Monitor, RotateCcw, ChevronLeft, ChevronRight,
-} from 'lucide-react';
+  Plus, MagnifyingGlass, PencilSimple, Trash, Package, X,
+  DownloadSimple, Eye, EyeSlash, Image, UploadSimple, CaretDown,
+  DeviceMobile, Monitor, ArrowCounterClockwise,
+} from '@phosphor-icons/react';
 import { supabase } from '../../lib/supabase';
 import { useCatalogAdmin } from '../../hooks/useCatalogAdmin';
 import { useProducts } from '../../hooks/useProducts';
+import { useAdminTheme } from '../../contexts/AdminThemeContext';
+import { readCache, writeCache } from '../../lib/cache';
+import Pagination from '../../components/Pagination';
 import DateRangeModal from '../../components/DateRangeModal';
 import type { CatalogProduct, CatalogCategoria, Product } from '../../lib/types';
 import type { StorageImage } from '../../lib/storage';
@@ -21,43 +23,6 @@ const PAGE_SIZE = 20;
 const CK_CATALOG = 'az_inv_catalog_v1';
 const CK_PHONES  = 'az_inv_phones_v1';
 const CK_MACS    = 'az_inv_macs_v1';
-
-function readCache<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? ((JSON.parse(raw) as { data: T[] }).data ?? []) : [];
-  } catch { return []; }
-}
-function writeCache<T>(key: string, data: T[]) {
-  try { localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch {}
-}
-
-// ──────────────────────────────────────────────────────────
-// Paginación
-// ──────────────────────────────────────────────────────────
-function Pagination({ page, total, dark, onPrev, onNext }: {
-  page: number; total: number; dark: boolean;
-  onPrev: () => void; onNext: () => void;
-}) {
-  const pages = Math.ceil(total / PAGE_SIZE);
-  if (pages <= 1) return null;
-  const start = page * PAGE_SIZE + 1;
-  const end   = Math.min((page + 1) * PAGE_SIZE, total);
-  const btn   = `flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30 transition-colors ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`;
-  return (
-    <div className={`flex items-center justify-between px-5 py-3 border-t text-xs ${dark ? 'border-gray-700 text-gray-400' : 'border-gray-100 text-gray-500'}`}>
-      <span>{start}–{end} de {total}</span>
-      <div className="flex gap-1">
-        <button onClick={onPrev} disabled={page === 0} className={btn}>
-          <ChevronLeft className="w-3.5 h-3.5" /> Anterior
-        </button>
-        <button onClick={onNext} disabled={page >= pages - 1} className={btn}>
-          Siguiente <ChevronRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ──────────────────────────────────────────────────────────
 // Tipos
@@ -211,7 +176,7 @@ function PhoneFormModal({
                     : dark ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-50'}`}>
                   {t === 'galeria'
                     ? <span className="flex items-center justify-center gap-1.5"><Image className="w-3.5 h-3.5" />Elegir existente</span>
-                    : <span className="flex items-center justify-center gap-1.5"><Upload className="w-3.5 h-3.5" />Subir nueva</span>}
+                    : <span className="flex items-center justify-center gap-1.5"><UploadSimple className="w-3.5 h-3.5" />Subir nueva</span>}
                 </button>
               ))}
             </div>
@@ -237,7 +202,7 @@ function PhoneFormModal({
                   className={`w-full py-3 border-2 border-dashed rounded-xl text-xs transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${dark ? 'border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-300' : 'border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600'}`}>
                   {uploading
                     ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />Subiendo…</>
-                    : <><Upload className="w-4 h-4" />Seleccionar imagen</>}
+                    : <><UploadSimple className="w-4 h-4" />Seleccionar imagen</>}
                 </button>
                 {uploadError && (
                   <p className="text-xs text-red-500 mt-2">{uploadError}</p>
@@ -273,7 +238,7 @@ function PhoneFormModal({
                 <option value="available">Disponible</option>
                 <option value="reserved">Reservado</option>
               </select>
-              <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <CaretDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
             <p className="text-xs text-gray-400 mt-1">El estado "Vendido" se asigna automáticamente al registrar una venta completada.</p>
           </div>
@@ -372,7 +337,7 @@ function ProductFormModal({
                   <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
                 ))}
               </select>
-              <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <CaretDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
           <div className="col-span-2">
@@ -412,7 +377,7 @@ function ProductFormModal({
                     : dark ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-50'}`}>
                   {t === 'galeria'
                     ? <span className="flex items-center justify-center gap-1.5"><Image className="w-3.5 h-3.5" />Elegir existente</span>
-                    : <span className="flex items-center justify-center gap-1.5"><Upload className="w-3.5 h-3.5" />Subir nueva</span>}
+                    : <span className="flex items-center justify-center gap-1.5"><UploadSimple className="w-3.5 h-3.5" />Subir nueva</span>}
                 </button>
               ))}
             </div>
@@ -438,7 +403,7 @@ function ProductFormModal({
                   className={`w-full py-3 border-2 border-dashed rounded-xl text-xs transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${dark ? 'border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-300' : 'border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600'}`}>
                   {uploading
                     ? <><span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />Subiendo…</>
-                    : <><Upload className="w-4 h-4" />{form.sku ? 'Seleccionar imagen' : 'Completa el SKU primero'}</>}
+                    : <><UploadSimple className="w-4 h-4" />{form.sku ? 'Seleccionar imagen' : 'Completa el SKU primero'}</>}
                 </button>
                 {uploadError && (
                   <p className="text-xs text-red-500 mt-2">{uploadError}</p>
@@ -560,15 +525,15 @@ function DeviceTable({
                     <div className="flex items-center gap-1">
                       <button onClick={() => onEdit(p)} title="Editar"
                         className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}>
-                        <Pencil className="w-4 h-4" />
+                        <PencilSimple className="w-4 h-4" />
                       </button>
                       <button onClick={() => onToggleVisibility(p)} title={p.visible_catalogo ? 'Ocultar del catálogo' : 'Mostrar en catálogo'}
                         className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}>
-                        {p.visible_catalogo ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {p.visible_catalogo ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                       <button onClick={() => onDelete(p)} title="Eliminar"
                         className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}>
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -578,7 +543,7 @@ function DeviceTable({
           )}
         </tbody>
       </table>
-      <Pagination page={page} total={totalItems} dark={dark} onPrev={onPrev} onNext={onNext} />
+      <Pagination page={page} total={totalItems} pageSize={PAGE_SIZE} dark={dark} onPrev={onPrev} onNext={onNext} />
     </div>
   );
 }
@@ -625,11 +590,11 @@ function DeletedDeviceTable({
                     <div className="flex items-center gap-1">
                       <button onClick={() => onRestore(p)} title="Recuperar"
                         className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-emerald-900/30 hover:text-emerald-400' : 'hover:bg-emerald-50 hover:text-emerald-600'}`}>
-                        <RotateCcw className="w-4 h-4" />
+                        <ArrowCounterClockwise className="w-4 h-4" />
                       </button>
                       <button onClick={() => onHardDelete(p)} title="Eliminar definitivamente"
                         className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}>
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -637,7 +602,7 @@ function DeletedDeviceTable({
               ))}
             </tbody>
           </table>
-          <Pagination page={page} total={totalItems} dark={dark} onPrev={onPrev} onNext={onNext} />
+          <Pagination page={page} total={totalItems} pageSize={PAGE_SIZE} dark={dark} onPrev={onPrev} onNext={onNext} />
         </>
       )}
     </div>
@@ -652,7 +617,7 @@ type FilterStatus = 'activos' | 'inactivos' | 'eliminados' | 'todos';
 type PhoneFilter  = 'activos' | 'inactivos' | 'reserved' | 'eliminados' | 'todos';
 
 export default function Inventory() {
-  const { isAdminDarkMode } = useOutletContext<{ isAdminDarkMode: boolean }>();
+  const { isAdminDarkMode } = useAdminTheme();
   const dark = isAdminDarkMode;
 
   // ── Hooks de datos ──
@@ -961,7 +926,7 @@ export default function Inventory() {
       <ProductFormModal open={modalOpen} title={editTarget ? 'Editar accesorio' : 'Nuevo accesorio'} form={form} onChange={handleChange} onSubmit={handleSubmit} onClose={() => setModalOpen(false)} saving={saving} uploadImage={uploadImage} storageImages={storageImages} loadingImages={loadingImages} dark={dark} />
 
       {confirmDelete && confirmModal(<>
-        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><Trash2 className="w-5 h-5 text-red-600" /></div>
+        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><Trash className="w-5 h-5 text-red-600" /></div>
         <h3 className={`font-black text-lg mb-2 ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>¿Eliminar accesorio?</h3>
         <p className="text-sm text-gray-400 mb-1">{confirmDelete.nombre}</p>
         <p className={`text-xs mb-6 ${dark ? 'text-gray-500' : 'text-gray-300'}`}>Se marcará como eliminado. Podrás recuperarlo.</p>
@@ -985,7 +950,7 @@ export default function Inventory() {
       <PhoneFormModal open={phoneModalOpen} title={editPhone ? 'Editar celular' : 'Nuevo celular'} form={phoneForm} onChange={handlePhoneChange} onSubmit={handlePhoneSubmit} onClose={() => setPhoneModalOpen(false)} saving={savingPhone} uploadImage={uploadImage} storageImages={storageImages} loadingImages={loadingImages} deviceType="phone" dark={dark} />
 
       {confirmDeletePhone && confirmModal(<>
-        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><Trash2 className="w-5 h-5 text-red-600" /></div>
+        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><Trash className="w-5 h-5 text-red-600" /></div>
         <h3 className={`font-black text-lg mb-2 ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>¿Eliminar celular?</h3>
         <p className="text-sm text-gray-400 mb-1">{confirmDeletePhone.model} {confirmDeletePhone.color ?? ''} {confirmDeletePhone.capacity ?? ''}</p>
         <p className={`text-xs mb-6 ${dark ? 'text-gray-500' : 'text-gray-300'}`}>Podrás recuperarlo desde "Eliminados".</p>
@@ -1003,7 +968,7 @@ export default function Inventory() {
       <PhoneFormModal open={macModalOpen} title={editMac ? 'Editar Mac' : 'Nueva Mac'} form={macForm} onChange={handleMacChange} onSubmit={handleMacSubmit} onClose={() => setMacModalOpen(false)} saving={savingMac} uploadImage={uploadImage} storageImages={storageImages} loadingImages={loadingImages} deviceType="mac" dark={dark} />
 
       {confirmDeleteMac && confirmModal(<>
-        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><Trash2 className="w-5 h-5 text-red-600" /></div>
+        <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><Trash className="w-5 h-5 text-red-600" /></div>
         <h3 className={`font-black text-lg mb-2 ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>¿Eliminar Mac?</h3>
         <p className="text-sm text-gray-400 mb-1">{confirmDeleteMac.model} {confirmDeleteMac.color ?? ''}</p>
         <p className={`text-xs mb-6 ${dark ? 'text-gray-500' : 'text-gray-300'}`}>Podrás recuperarla desde "Eliminados".</p>
@@ -1039,7 +1004,7 @@ export default function Inventory() {
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setExportModalOpen(true)}
             className={`border px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold transition-all shadow-sm ${dark ? 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-            <Download className="w-4 h-4" /> Exportar Excel
+            <DownloadSimple className="w-4 h-4" /> Exportar Excel
           </button>
           {mainTab === 'accesorios' && (
             <button onClick={openAdd} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold transition-all shadow-sm active:scale-[0.98] ${dark ? 'bg-white text-gray-900 hover:bg-gray-100' : 'bg-[#0A0A0A] text-white hover:bg-gray-800'}`}>
@@ -1063,7 +1028,7 @@ export default function Inventory() {
       <div className={`flex gap-1 mb-6 p-1 rounded-xl w-fit ${dark ? 'bg-gray-700' : 'bg-gray-100'}`}>
         {([
           { key: 'accesorios', label: 'Accesorios', Icon: Package },
-          { key: 'celulares',  label: 'Celulares',  Icon: Smartphone },
+          { key: 'celulares',  label: 'Celulares',  Icon: DeviceMobile},
           { key: 'macs',       label: 'Macs',        Icon: Monitor },
         ] as { key: MainTab; label: string; Icon: React.ElementType }[]).map(({ key, label, Icon }) => (
           <button key={key} onClick={() => setMainTab(key)}
@@ -1080,7 +1045,7 @@ export default function Inventory() {
         <>
           <div className="flex flex-wrap gap-2 mb-4">
             <div className={`group border rounded-xl flex items-center px-4 py-2.5 shadow-sm transition-all w-full sm:w-56 ${dark ? 'bg-gray-800 border-gray-600 focus-within:border-white/50' : 'bg-white border-gray-200 focus-within:border-[#0A0A0A] focus-within:shadow-md'}`}>
-              <Search className={`w-4 h-4 mr-2 shrink-0 transition-colors ${dark ? 'text-gray-500 group-focus-within:text-white' : 'text-gray-300 group-focus-within:text-[#0A0A0A]'}`} />
+              <MagnifyingGlass className={`w-4 h-4 mr-2 shrink-0 transition-colors ${dark ? 'text-gray-500 group-focus-within:text-white' : 'text-gray-300 group-focus-within:text-[#0A0A0A]'}`} />
               <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar por nombre o SKU…"
                 className={`outline-none text-sm w-full bg-transparent ${dark ? 'text-white placeholder:text-gray-500' : 'text-gray-700 placeholder:text-gray-300'}`} />
             </div>
@@ -1090,7 +1055,7 @@ export default function Inventory() {
                 <option value="todas">Todas las categorías</option>
                 {CATEGORIAS.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <CaretDown className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
             {(['activos', 'inactivos', 'eliminados', 'todos'] as FilterStatus[]).map((s) => (
               <button key={s} onClick={() => setStatusFilter(s)} className={filterBtnCls(statusFilter === s)}>
@@ -1153,14 +1118,14 @@ export default function Inventory() {
                         <td className="px-4 py-3">
                           {!isDeleted ? (
                             <div className="flex items-center gap-1">
-                              <button onClick={() => openEdit(p)} title="Editar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}><Pencil className="w-4 h-4" /></button>
-                              <button onClick={() => toggleActive(p.id, !p.activo)} title={p.activo ? 'Desactivar' : 'Activar'} className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}>{p.activo ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-                              <button onClick={() => setConfirmDelete(p)} title="Eliminar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}><Trash2 className="w-4 h-4" /></button>
+                              <button onClick={() => openEdit(p)} title="Editar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}><PencilSimple className="w-4 h-4" /></button>
+                              <button onClick={() => toggleActive(p.id, !p.activo)} title={p.activo ? 'Desactivar' : 'Activar'} className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}>{p.activo ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                              <button onClick={() => setConfirmDelete(p)} title="Eliminar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}><Trash className="w-4 h-4" /></button>
                             </div>
                           ) : (
                             <div className="flex items-center gap-1">
-                              <button onClick={() => setConfirmRestoreCatalog(p)} title="Recuperar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-emerald-900/30 hover:text-emerald-400' : 'hover:bg-emerald-50 hover:text-emerald-600'}`}><RotateCcw className="w-4 h-4" /></button>
-                              <button onClick={() => setConfirmHardDeleteCatalog(p)} title="Eliminar definitivamente" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}><Trash2 className="w-4 h-4" /></button>
+                              <button onClick={() => setConfirmRestoreCatalog(p)} title="Recuperar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-emerald-900/30 hover:text-emerald-400' : 'hover:bg-emerald-50 hover:text-emerald-600'}`}><ArrowCounterClockwise className="w-4 h-4" /></button>
+                              <button onClick={() => setConfirmHardDeleteCatalog(p)} title="Eliminar definitivamente" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}><Trash className="w-4 h-4" /></button>
                             </div>
                           )}
                         </td>
@@ -1170,7 +1135,7 @@ export default function Inventory() {
                 )}
               </tbody>
             </table>
-            <Pagination page={accPage} total={filtered.length} dark={dark}
+            <Pagination page={accPage} total={filtered.length} pageSize={PAGE_SIZE} dark={dark}
               onPrev={() => setAccPage(p => p - 1)} onNext={() => setAccPage(p => p + 1)} />
           </div>
         </>
@@ -1182,7 +1147,7 @@ export default function Inventory() {
           <div className="flex gap-2 mb-4 flex-wrap">
             {phoneFilter !== 'eliminados' && (
               <div className={`group border rounded-xl flex items-center px-4 py-2.5 shadow-sm transition-all w-full sm:w-56 ${dark ? 'bg-gray-800 border-gray-600 focus-within:border-white/50' : 'bg-white border-gray-200 focus-within:border-[#0A0A0A]'}`}>
-                <Search className={`w-4 h-4 mr-2 shrink-0 transition-colors ${dark ? 'text-gray-500 group-focus-within:text-white' : 'text-gray-300 group-focus-within:text-[#0A0A0A]'}`} />
+                <MagnifyingGlass className={`w-4 h-4 mr-2 shrink-0 transition-colors ${dark ? 'text-gray-500 group-focus-within:text-white' : 'text-gray-300 group-focus-within:text-[#0A0A0A]'}`} />
                 <input type="text" value={phoneQuery} onChange={(e) => setPhoneQuery(e.target.value)} placeholder="Buscar modelo, color, IMEI…"
                   className={`outline-none text-sm w-full bg-transparent ${dark ? 'text-white placeholder:text-gray-500' : 'text-gray-700 placeholder:text-gray-300'}`} />
               </div>
@@ -1193,7 +1158,7 @@ export default function Inventory() {
           </div>
           {phoneFilter === 'eliminados' ? (
             <DeletedDeviceTable
-              items={paginatedDeletedPhones} emptyIcon={Smartphone}
+              items={paginatedDeletedPhones} emptyIcon={DeviceMobile}
               onRestore={(p) => restorePhone(p.id)} onHardDelete={(p) => setConfirmHardDeletePhone(p)}
               dark={dark} page={phoneDelPage} totalItems={deletedPhones.length}
               onPrev={() => setPhoneDelPage(p => p - 1)} onNext={() => setPhoneDelPage(p => p + 1)}
@@ -1201,7 +1166,7 @@ export default function Inventory() {
           ) : (
             <DeviceTable
               items={paginatedPhones} loading={loadingPhones && phonesData.length === 0}
-              emptyIcon={Smartphone} emptyText={phoneQuery ? `Sin resultados para "${phoneQuery}"` : 'No hay celulares registrados.'}
+              emptyIcon={DeviceMobile} emptyText={phoneQuery ? `Sin resultados para "${phoneQuery}"` : 'No hay celulares registrados.'}
               onEdit={openEditPhone} onDelete={(p) => setConfirmDeletePhone(p)}
               onToggleVisibility={handlePhoneToggleVisibility}
               dark={dark} page={phonePage} totalItems={filteredPhones.length}
@@ -1217,7 +1182,7 @@ export default function Inventory() {
           <div className="flex gap-2 mb-4 flex-wrap">
             {macFilter !== 'eliminados' && (
               <div className={`group border rounded-xl flex items-center px-4 py-2.5 shadow-sm transition-all w-full sm:w-56 ${dark ? 'bg-gray-800 border-gray-600 focus-within:border-white/50' : 'bg-white border-gray-200 focus-within:border-[#0A0A0A]'}`}>
-                <Search className={`w-4 h-4 mr-2 shrink-0 transition-colors ${dark ? 'text-gray-500 group-focus-within:text-white' : 'text-gray-300 group-focus-within:text-[#0A0A0A]'}`} />
+                <MagnifyingGlass className={`w-4 h-4 mr-2 shrink-0 transition-colors ${dark ? 'text-gray-500 group-focus-within:text-white' : 'text-gray-300 group-focus-within:text-[#0A0A0A]'}`} />
                 <input type="text" value={macQuery} onChange={(e) => setMacQuery(e.target.value)} placeholder="Buscar modelo, color, N° serie…"
                   className={`outline-none text-sm w-full bg-transparent ${dark ? 'text-white placeholder:text-gray-500' : 'text-gray-700 placeholder:text-gray-300'}`} />
               </div>

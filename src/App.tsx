@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 import { AuthProvider } from './contexts/AuthContext';
+import { AdminThemeProvider } from './contexts/AdminThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { supabase } from './lib/supabase';
 import { useAnalyticsTracker } from './hooks/useAnalyticsTracker';
@@ -23,29 +24,12 @@ import Settings from './pages/admin/Settings';
 function AppContent() {
   const location = useLocation();
   useAnalyticsTracker();
-  const [isAdminDarkMode, setIsAdminDarkMode] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen]     = useState(false);
-  const [sweeping, setSweeping]               = useState(false);
-  const [sweepTarget, setSweepTarget]         = useState(false);
-  const sweepTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Cerrar sidebar al salir del área admin
   useEffect(() => {
     if (!location.pathname.startsWith('/admin')) setIsSidebarOpen(false);
   }, [location.pathname]);
-
-  const handleSetDarkMode = (val: boolean) => {
-    sweepTimers.current.forEach(clearTimeout);
-    setSweepTarget(val);
-    setSweeping(true);
-    sweepTimers.current = [
-      setTimeout(() => {
-        localStorage.setItem('admin-dark-mode', String(val));
-        setIsAdminDarkMode(val);
-      }, 260),
-      setTimeout(() => setSweeping(false), 600),
-    ];
-  };
 
   const [contactPhone, setContactPhone]       = useState('68531959');
   const [whatsappMessage, setWhatsappMessage] = useState('Hola, me gustaría saber más sobre un equipo.');
@@ -66,7 +50,6 @@ function AppContent() {
   return (
     <>
       <Navbar
-        isAdminDarkMode={isAdminDarkMode}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={() => setIsSidebarOpen(v => !v)}
       />
@@ -82,7 +65,6 @@ function AppContent() {
         <Route element={<ProtectedRoute />}>
           <Route path="/admin" element={
             <AdminLayout
-              isAdminDarkMode={isAdminDarkMode}
               isSidebarOpen={isSidebarOpen}
               setIsSidebarOpen={setIsSidebarOpen}
             />
@@ -94,8 +76,6 @@ function AppContent() {
             <Route path="metrics" element={<Metrics />} />
             <Route path="settings" element={
               <Settings
-                isAdminDarkMode={isAdminDarkMode}
-                setIsAdminDarkMode={handleSetDarkMode}
                 contactPhone={contactPhone}
                 setContactPhone={setContactPhone}
                 whatsappMessage={whatsappMessage}
@@ -107,13 +87,6 @@ function AppContent() {
       </Routes>
 
       <Footer />
-
-      {sweeping && (
-        <div
-          className="theme-sweep fixed inset-0 z-[9999] pointer-events-none"
-          style={{ background: sweepTarget ? '#0A0A0A' : '#FAFAFA' }}
-        />
-      )}
     </>
   );
 }
@@ -122,7 +95,9 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppContent />
+        <AdminThemeProvider>
+          <AppContent />
+        </AdminThemeProvider>
       </BrowserRouter>
     </AuthProvider>
   );

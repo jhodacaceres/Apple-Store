@@ -16,84 +16,94 @@ function sortProducts(list: CatalogProduct[]): CatalogProduct[] {
 export function useCatalogAdmin() {
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    setError(null);
+    const { data, error: err } = await supabase
       .from('catalog_products')
       .select('*')
       .order('categoria')
       .order('nombre');
-    setProducts((data ?? []) as CatalogProduct[]);
+    if (err) setError(err.message);
+    else setProducts((data ?? []) as CatalogProduct[]);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetch(); }, [fetch]);
 
-  async function addProduct(input: ProductInput) {
-    const { data, error } = await supabase
+  const addProduct = useCallback(async (input: ProductInput): Promise<string | null> => {
+    const { data, error: err } = await supabase
       .from('catalog_products')
       .insert([input])
       .select()
       .single();
-    if (error) throw error;
+    if (err) return err.message;
     setProducts(prev => sortProducts([...prev, data as CatalogProduct]));
-  }
+    return null;
+  }, []);
 
-  async function updateProduct(id: string, input: Partial<ProductInput>) {
-    const { data, error } = await supabase
+  const updateProduct = useCallback(async (id: string, input: Partial<ProductInput>): Promise<string | null> => {
+    const { data, error: err } = await supabase
       .from('catalog_products')
       .update(input)
       .eq('id', id)
       .select()
       .single();
-    if (error) throw error;
+    if (err) return err.message;
     setProducts(prev => prev.map(p => p.id === id ? (data as CatalogProduct) : p));
-  }
+    return null;
+  }, []);
 
-  async function softDeleteProduct(id: string) {
-    const { error } = await supabase
+  const softDeleteProduct = useCallback(async (id: string): Promise<string | null> => {
+    const { error: err } = await supabase
       .from('catalog_products')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
-    if (error) throw error;
+    if (err) return err.message;
     setProducts(prev => prev.map(p => p.id === id ? { ...p, deleted_at: new Date().toISOString() } : p));
-  }
+    return null;
+  }, []);
 
-  async function toggleActive(id: string, activo: boolean) {
-    const { error } = await supabase
+  const toggleActive = useCallback(async (id: string, activo: boolean): Promise<string | null> => {
+    const { error: err } = await supabase
       .from('catalog_products')
       .update({ activo })
       .eq('id', id);
-    if (error) throw error;
+    if (err) return err.message;
     setProducts(prev => prev.map(p => p.id === id ? { ...p, activo } : p));
-  }
+    return null;
+  }, []);
 
-  async function uploadImage(file: File, sku: string, categoria: string): Promise<string> {
+  const uploadImage = useCallback(async (file: File, sku: string, categoria: string): Promise<string> => {
     return uploadProductImage(file, sku, categoria);
-  }
+  }, []);
 
-  async function restoreProduct(id: string) {
-    const { error } = await supabase
+  const restoreProduct = useCallback(async (id: string): Promise<string | null> => {
+    const { error: err } = await supabase
       .from('catalog_products')
       .update({ deleted_at: null })
       .eq('id', id);
-    if (error) throw error;
+    if (err) return err.message;
     setProducts(prev => prev.map(p => p.id === id ? { ...p, deleted_at: null } : p));
-  }
+    return null;
+  }, []);
 
-  async function hardDeleteProduct(id: string) {
-    const { error } = await supabase
+  const hardDeleteProduct = useCallback(async (id: string): Promise<string | null> => {
+    const { error: err } = await supabase
       .from('catalog_products')
       .delete()
       .eq('id', id);
-    if (error) throw error;
+    if (err) return err.message;
     setProducts(prev => prev.filter(p => p.id !== id));
-  }
+    return null;
+  }, []);
 
   return {
     products,
     loading,
+    error,
     reload: fetch,
     addProduct,
     updateProduct,

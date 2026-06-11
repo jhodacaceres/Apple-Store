@@ -1,10 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { useOutletContext } from 'react-router-dom';
 import {
-  Download, Plus, Eye, X, ShoppingBag, Pencil, Trash2, RotateCcw,
-  AlertTriangle, ChevronLeft, ChevronRight,
-} from 'lucide-react';
+  DownloadSimple, Plus, Eye, X, ShoppingBag, PencilSimple, Trash, ArrowCounterClockwise,
+  Warning,
+} from '@phosphor-icons/react';
+import { useAdminTheme } from '../../contexts/AdminThemeContext';
+import { readCache, writeCache } from '../../lib/cache';
+import Pagination from '../../components/Pagination';
 import { supabase } from '../../lib/supabase';
 import { useOrders } from '../../hooks/useOrders';
 import { useProducts } from '../../hooks/useProducts';
@@ -18,40 +20,6 @@ import type { Order } from '../../lib/types';
 // ──────────────────────────────────────────────────────────
 const PAGE_SIZE = 20;
 const CK_ORDERS = 'az_orders_v1';
-
-function readCache<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? ((JSON.parse(raw) as { data: T[] }).data ?? []) : [];
-  } catch { return []; }
-}
-function writeCache<T>(key: string, data: T[]) {
-  try { localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch {}
-}
-
-function Pagination({ page, total, dark, onPrev, onNext }: {
-  page: number; total: number; dark: boolean;
-  onPrev: () => void; onNext: () => void;
-}) {
-  const pages = Math.ceil(total / PAGE_SIZE);
-  if (pages <= 1) return null;
-  const start = page * PAGE_SIZE + 1;
-  const end   = Math.min((page + 1) * PAGE_SIZE, total);
-  const btn   = `flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-30 transition-colors ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`;
-  return (
-    <div className={`flex items-center justify-between px-5 py-3 border-t text-xs ${dark ? 'border-gray-700 text-gray-400' : 'border-gray-100 text-gray-500'}`}>
-      <span>{start}–{end} de {total}</span>
-      <div className="flex gap-1">
-        <button onClick={onPrev} disabled={page === 0} className={btn}>
-          <ChevronLeft className="w-3.5 h-3.5" /> Anterior
-        </button>
-        <button onClick={onNext} disabled={page >= pages - 1} className={btn}>
-          Siguiente <ChevronRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ──────────────────────────────────────────────────────────
 // Tipos
@@ -109,11 +77,16 @@ function getProductType(o: Order): string {
 
 type SalesTab = 'active' | 'deleted';
 
+type RestoreCheck =
+  | { type: 'conflict'; order: Order; conflictOrder: Order }
+  | { type: 'blocked';  order: Order; reason: string }
+  | null;
+
 // ──────────────────────────────────────────────────────────
 // Página
 // ──────────────────────────────────────────────────────────
 export default function Sales() {
-  const { isAdminDarkMode: dark } = useOutletContext<{ isAdminDarkMode: boolean }>();
+  const { isAdminDarkMode: dark } = useAdminTheme();
 
   const {
     orders, deletedOrders, loading,
@@ -151,6 +124,8 @@ export default function Sales() {
   const [editForm, setEditForm]         = useState<EditForm>({ customer_name: '', customer_phone: '', total_price: '', status: 'completed', notes: '' });
   const [saving, setSaving]             = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [restoreCheck, setRestoreCheck] = useState<RestoreCheck>(null);
+  const [resolvingSaving, setResolvingSaving] = useState(false);
 
   // ── Paginación ──
   const [ordersPage,  setOrdersPage]  = useState(0);
@@ -260,10 +235,55 @@ export default function Sales() {
     setDeleteOrder(null);
   };
 
-  const handleRestore = async (order: Order) => {
+  const checkAndRestore = async (order: Order) => {
+    if (order.status !== 'completed') {
+      await restoreOrder(order);
+      reloadPhones(); reloadMacs();
+      return;
+    }
+
+    if (order.product_id) {
+      const { data: conflict } = await supabase
+        .from('orders')
+        .select('id, order_number, customer_name, customer_phone, created_at, total_price, status, deleted_at, notes, product_id, catalog_product_id')
+        .eq('product_id', order.product_id)
+        .is('deleted_at', null)
+        .neq('id', order.id)
+        .maybeSingle();
+
+      if (conflict) {
+        setRestoreCheck({ type: 'conflict', order, conflictOrder: conflict as Order });
+        return;
+      }
+    } else if (order.catalog_product_id) {
+      const { data: acc } = await supabase
+        .from('catalog_products')
+        .select('stock, nombre')
+        .eq('id', order.catalog_product_id)
+        .single();
+
+      if (acc && acc.stock === 0) {
+        setRestoreCheck({
+          type: 'blocked',
+          order,
+          reason: `El accesorio "${acc.nombre}" no tiene stock disponible.`,
+        });
+        return;
+      }
+    }
+
     await restoreOrder(order);
-    reloadPhones();
-    reloadMacs();
+    reloadPhones(); reloadMacs();
+  };
+
+  const handleConflictKeepThis = async () => {
+    if (!restoreCheck || restoreCheck.type !== 'conflict') return;
+    setResolvingSaving(true);
+    await cancelOrder(restoreCheck.conflictOrder);
+    await restoreOrder(restoreCheck.order);
+    reloadPhones(); reloadMacs();
+    setResolvingSaving(false);
+    setRestoreCheck(null);
   };
 
   const handleHardDelete = async () => {
@@ -513,7 +533,7 @@ export default function Sales() {
             <div className="p-6 space-y-4">
               <div className="flex items-start gap-3">
                 <div className="p-2.5 bg-amber-100 rounded-xl shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  <Warning className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
                   <h3 className={`font-black text-base ${modalText}`}>¿Eliminar esta venta?</h3>
@@ -521,7 +541,7 @@ export default function Sales() {
                 </div>
               </div>
               <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <Warning className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-amber-700 text-xs font-medium">
                   Las ventas eliminadas no se toman en cuenta en el cálculo del dashboard.
                 </p>
@@ -548,7 +568,7 @@ export default function Sales() {
             <div className="p-6 space-y-4">
               <div className="flex items-start gap-3">
                 <div className="p-2.5 bg-red-100 rounded-xl shrink-0">
-                  <Trash2 className="w-5 h-5 text-red-600" />
+                  <Trash className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
                   <h3 className={`font-black text-base ${modalText}`}>Eliminar definitivamente</h3>
@@ -610,6 +630,88 @@ export default function Sales() {
         <DateRangeModal title="Exportar Ventas" onExport={handleExport} onClose={() => setExportModalOpen(false)} />
       )}
 
+      {/* Modal conflicto de equipo */}
+      {restoreCheck?.type === 'conflict' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className={`${modalBg} rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden`}>
+            <div className={`flex items-center justify-between px-6 py-5 border-b ${modalHead}`}>
+              <h3 className={`font-black text-lg ${modalText}`}>Conflicto de equipo</h3>
+              <button onClick={() => setRestoreCheck(null)} className="p-2 hover:bg-gray-100/10 rounded-xl transition-colors">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl p-3">
+                <Warning className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-amber-700 text-xs font-medium">
+                  Este equipo ya tiene otra venta activa. Elige cuál conservar como válida.
+                </p>
+              </div>
+              <div className={`rounded-xl border overflow-hidden text-sm ${dark ? 'border-gray-700' : 'border-gray-100'}`}>
+                <div className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b ${dark ? 'border-gray-700 bg-gray-700/50' : 'border-gray-100 bg-gray-50'}`}>
+                  Venta a restaurar
+                </div>
+                <div className={`px-4 py-3 flex items-center justify-between gap-4 ${dark ? 'bg-gray-800' : 'bg-white'}`}>
+                  <span className={`font-mono text-xs font-bold px-2 py-1 rounded-lg border ${dark ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
+                    {restoreCheck.order.order_number}
+                  </span>
+                  <span className={`font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{restoreCheck.order.customer_name}</span>
+                  <span className="text-gray-400 text-xs">{new Date(restoreCheck.order.created_at).toLocaleDateString('es-BO')}</span>
+                  <span className={`font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(restoreCheck.order.total_price).toLocaleString()}</span>
+                </div>
+                <div className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 border-t border-b ${dark ? 'border-gray-700 bg-gray-700/50' : 'border-gray-100 bg-gray-50'}`}>
+                  Venta activa en conflicto
+                </div>
+                <div className={`px-4 py-3 flex items-center justify-between gap-4 ${dark ? 'bg-gray-800' : 'bg-white'}`}>
+                  <span className={`font-mono text-xs font-bold px-2 py-1 rounded-lg border ${dark ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
+                    {restoreCheck.conflictOrder.order_number}
+                  </span>
+                  <span className={`font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{restoreCheck.conflictOrder.customer_name}</span>
+                  <span className="text-gray-400 text-xs">{new Date(restoreCheck.conflictOrder.created_at).toLocaleDateString('es-BO')}</span>
+                  <span className={`font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(restoreCheck.conflictOrder.total_price).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+            <div className={`px-6 py-4 border-t ${modalHead} flex justify-end gap-3`}>
+              <button onClick={() => setRestoreCheck(null)}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100/10 transition-colors">
+                Mantener la otra
+              </button>
+              <button onClick={handleConflictKeepThis} disabled={resolvingSaving}
+                className="px-6 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-sm font-semibold hover:bg-gray-800 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center gap-2">
+                {resolvingSaving && <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                Conservar esta venta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal restauración bloqueada */}
+      {restoreCheck?.type === 'blocked' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className={`${modalBg} rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden`}>
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-red-100 rounded-xl shrink-0">
+                  <Warning className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className={`font-black text-base ${modalText}`}>No se puede restaurar</h3>
+                  <p className="text-gray-400 text-sm mt-1">{restoreCheck.reason}</p>
+                </div>
+              </div>
+            </div>
+            <div className={`px-6 py-4 border-t ${modalHead} flex justify-end`}>
+              <button onClick={() => setRestoreCheck(null)}
+                className="px-6 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-sm font-semibold hover:bg-gray-800 transition-all active:scale-[0.98]">
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
@@ -624,7 +726,7 @@ export default function Sales() {
               dark ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
           >
-            <Download className="w-4 h-4" /> Exportar Excel
+            <DownloadSimple className="w-4 h-4" /> Exportar Excel
           </button>
           <button
             onClick={() => { setForm(EMPTY_FORM); setModalOpen(true); }}
@@ -724,11 +826,11 @@ export default function Sales() {
                       </button>
                       <button onClick={() => openEdit(o)}
                         className="p-1.5 hover:bg-gray-100/20 rounded-lg transition-colors text-gray-400 hover:text-blue-500" title="Editar">
-                        <Pencil className="w-4 h-4" />
+                        <PencilSimple className="w-4 h-4" />
                       </button>
                       <button onClick={() => setDeleteOrder(o)}
                         className="p-1.5 hover:bg-gray-100/20 rounded-lg transition-colors text-gray-400 hover:text-red-500" title="Eliminar">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -736,7 +838,7 @@ export default function Sales() {
               )}
             </tbody>
           </table>
-          <Pagination page={ordersPage} total={ordersData.length} dark={dark}
+          <Pagination page={ordersPage} total={ordersData.length} pageSize={PAGE_SIZE} dark={dark}
             onPrev={() => setOrdersPage(p => p - 1)} onNext={() => setOrdersPage(p => p + 1)} />
         </div>
       )}
@@ -777,20 +879,20 @@ export default function Sales() {
                         {o.deleted_at ? new Date(o.deleted_at).toLocaleDateString('es-BO') : '—'}
                       </td>
                       <td className={`${tdClass} flex items-center gap-1`}>
-                        <button onClick={() => handleRestore(o)}
+                        <button onClick={() => checkAndRestore(o)}
                           className="p-1.5 hover:bg-gray-100/20 rounded-lg transition-colors text-gray-400 hover:text-emerald-500" title="Recuperar">
-                          <RotateCcw className="w-4 h-4" />
+                          <ArrowCounterClockwise className="w-4 h-4" />
                         </button>
                         <button onClick={() => setHardDeleteTarget(o)}
                           className="p-1.5 hover:bg-gray-100/20 rounded-lg transition-colors text-gray-400 hover:text-red-500" title="Eliminar definitivamente">
-                          <Trash2 className="w-4 h-4" />
+                          <Trash className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <Pagination page={deletedPage} total={deletedOrders.length} dark={dark}
+              <Pagination page={deletedPage} total={deletedOrders.length} pageSize={PAGE_SIZE} dark={dark}
                 onPrev={() => setDeletedPage(p => p - 1)} onNext={() => setDeletedPage(p => p + 1)} />
             </>
           )}

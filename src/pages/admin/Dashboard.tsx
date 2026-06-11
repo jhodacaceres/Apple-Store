@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { TrendingUp, Smartphone, Package, DollarSign, Calendar, RotateCcw } from 'lucide-react';
+import { TrendUp, DeviceMobile, Package, CurrencyDollar, Calendar, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { useAdminTheme } from '../../contexts/AdminThemeContext';
 import { useProducts } from '../../hooks/useProducts';
 import { useOrders } from '../../hooks/useOrders';
 import type { Order } from '../../lib/types';
@@ -41,7 +41,7 @@ function last30Days() {
 const chartBars = [40, 65, 50, 80, 45, 90, 70, 55, 85, 60, 75, 95];
 
 export default function Dashboard() {
-  const { isAdminDarkMode } = useOutletContext<{ isAdminDarkMode: boolean }>();
+  const { isAdminDarkMode } = useAdminTheme();
   const { products, loading: loadingP } = useProducts('phone');
   const { products: macs, loading: loadingM } = useProducts('mac');
   const { orders, loading: loadingO } = useOrders();
@@ -114,7 +114,7 @@ export default function Dashboard() {
       {
         title: 'Ingresos Totales',
         value: `$${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 0 })}`,
-        icon: DollarSign,
+        icon: CurrencyDollar,
         trend: sold > 0 ? '+activo' : '—',
         trendUp: sold > 0,
         color: 'emerald' as MetricColor,
@@ -122,7 +122,7 @@ export default function Dashboard() {
       {
         title: 'Ventas',
         value: String(sold),
-        icon: Smartphone,
+        icon: DeviceMobile,
         trend: trend !== null ? `${Number(trend) >= 0 ? '+' : ''}${trend}% vs período ant.` : '—',
         trendUp: trend !== null ? Number(trend) >= 0 : true,
         color: 'blue' as MetricColor,
@@ -140,7 +140,7 @@ export default function Dashboard() {
       {
         title: 'Ventas (período)',
         value: String(sold),
-        icon: TrendingUp,
+        icon: TrendUp,
         trend: trend !== null ? `${Number(trend) >= 0 ? '+' : ''}${trend}% vs ant.` : '—',
         trendUp: trend !== null ? Number(trend) >= 0 : true,
         color: 'amber' as MetricColor,
@@ -195,7 +195,7 @@ export default function Dashboard() {
             title="Últimos 30 días"
             className={`p-2 rounded-xl transition-colors ${dark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-400'}`}
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <ArrowCounterClockwise className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

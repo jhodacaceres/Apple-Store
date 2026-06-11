@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Save, Phone, Moon, Sun, Info, BookOpen, CheckCircle,
-  Users, Plus, X, Trash2, RotateCcw, Shield, ShieldOff, KeyRound, LogOut,
-} from 'lucide-react';
+  FloppyDisk, Phone, Moon, Sun, Info, BookOpen, CheckCircle,
+  Users, Plus, X, Trash, ArrowCounterClockwise, Shield, ShieldSlash, Key, SignOut,
+} from '@phosphor-icons/react';
 import { useSettings } from '../../hooks/useSettings';
 import { useUsers } from '../../hooks/useUsers';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAdminTheme } from '../../contexts/AdminThemeContext';
 import type { Profile } from '../../lib/types';
 
 interface SettingsProps {
-  isAdminDarkMode: boolean;
-  setIsAdminDarkMode: (val: boolean) => void;
   contactPhone: string;
   setContactPhone: (val: string) => void;
   whatsappMessage: string;
@@ -137,7 +136,7 @@ function UserRow({
         {/* Enviar reset de contraseña */}
         <button onClick={() => u.email && onResetPassword(u.email)} title="Enviar reset de contraseña"
           className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-blue-500">
-          <KeyRound className="w-4 h-4" />
+          <Key className="w-4 h-4" />
         </button>
 
         {/* Promover/Degradar admin — no se puede degradar a sí mismo */}
@@ -145,7 +144,7 @@ function UserRow({
           <button onClick={() => onToggleAdmin(u.id, u.role !== 'admin')}
             title={u.role === 'admin' ? 'Quitar permisos de admin' : 'Hacer admin'}
             className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-amber-500">
-            {u.role === 'admin' ? <ShieldOff className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+            {u.role === 'admin' ? <ShieldSlash className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
           </button>
         )}
 
@@ -153,18 +152,18 @@ function UserRow({
         {!isSelf && !isInactive && (
           <button onClick={() => onSoftDelete(u.id)} title="Desactivar cuenta"
             className="p-2 hover:bg-red-50 rounded-xl transition-colors text-gray-400 hover:text-red-500">
-            <Trash2 className="w-4 h-4" />
+            <Trash className="w-4 h-4" />
           </button>
         )}
         {!isSelf && isInactive && (
           <>
             <button onClick={() => onRestore(u.id)} title="Restaurar cuenta"
               className="p-2 hover:bg-emerald-50 rounded-xl transition-colors text-gray-400 hover:text-emerald-600">
-              <RotateCcw className="w-4 h-4" />
+              <ArrowCounterClockwise className="w-4 h-4" />
             </button>
             <button onClick={() => onHardDelete(u.id)} title="Eliminar definitivamente"
               className="p-2 hover:bg-red-50 rounded-xl transition-colors text-gray-400 hover:text-red-700">
-              <Trash2 className="w-4 h-4 text-red-400" />
+              <Trash className="w-4 h-4 text-red-400" />
             </button>
           </>
         )}
@@ -175,12 +174,12 @@ function UserRow({
 
 // ── Página principal ─────────────────────────────────────────
 export default function Settings({
-  isAdminDarkMode, setIsAdminDarkMode,
   contactPhone, setContactPhone,
   whatsappMessage, setWhatsappMessage,
 }: SettingsProps) {
   const { settings, saveSettings } = useSettings();
   const { user, profile, signOut } = useAuth();
+  const { isAdminDarkMode, setIsAdminDarkMode } = useAdminTheme();
   const navigate = useNavigate();
   const { users, loading: loadingUsers, loadUsers, softDeleteUser, restoreUser, hardDeleteUser, createUser, setAdminRole, sendPasswordReset } = useUsers();
 
@@ -326,7 +325,7 @@ export default function Settings({
             {/* Recuperar contraseña propia */}
             <div className="py-6">
               <h3 className="text-base font-bold flex items-center gap-2 mb-4">
-                <KeyRound className="w-4 h-4" />Seguridad
+                <Key className="w-4 h-4" />Seguridad
               </h3>
               <div className={`flex items-center justify-between p-4 rounded-xl border ${isAdminDarkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-100'}`}>
                 <div>
@@ -346,7 +345,7 @@ export default function Settings({
             {/* Cerrar sesión */}
             <div className="py-6">
               <h3 className="text-base font-bold flex items-center gap-2 mb-4">
-                <LogOut className="w-4 h-4" />Sesión
+                <SignOut className="w-4 h-4" />Sesión
               </h3>
               <div className={`flex items-center justify-between p-4 rounded-xl border ${isAdminDarkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-100'}`}>
                 <div>
@@ -401,7 +400,7 @@ export default function Settings({
                 className={`px-6 py-3 rounded-xl flex items-center gap-2 text-sm font-bold transition-all duration-200 shadow-sm active:scale-[0.98] disabled:opacity-60 ${
                   isAdminDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-white' : 'bg-[#0A0A0A] text-white hover:bg-gray-800'
                 }`}>
-                {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FloppyDisk className="w-4 h-4" />}
                 {saving ? 'Guardando…' : 'Guardar Cambios'}
               </button>
             </div>
@@ -490,7 +489,7 @@ export default function Settings({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center">
             <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">
-              <KeyRound className="w-5 h-5 text-blue-500" />
+              <Key className="w-5 h-5 text-blue-500" />
             </div>
             <h3 className="font-black text-lg mb-2 text-[#0A0A0A]">Enviar enlace de restablecimiento</h3>
             <p className="text-sm text-gray-400 mb-3">{confirmResetEmail}</p>

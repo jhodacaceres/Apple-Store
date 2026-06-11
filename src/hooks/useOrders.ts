@@ -20,9 +20,9 @@ const ORDER_SELECT = '*, products(model, color, capacity, deleted_at, device_typ
 
 export function useOrders() {
   const { user, profile } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders]               = useState<Order[]>([]);
   const [deletedOrders, setDeletedOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]             = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -35,7 +35,57 @@ export function useOrders() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase
+      .from('orders')
+      .select(ORDER_SELECT)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (!isMounted) return;
+        setOrders((data ?? []) as Order[]);
+        setLoading(false);
+      });
+
+    const channel = supabase
+      .channel('orders_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          if (!isMounted) return;
+          if (payload.eventType === 'INSERT') {
+            const inserted = payload.new as Order;
+            if (!inserted.deleted_at) {
+              setOrders((prev) => [inserted, ...prev]);
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as Order;
+            if (updated.deleted_at) {
+              setOrders((prev) => prev.filter((o) => o.id !== updated.id));
+            } else {
+              setOrders((prev) =>
+                prev.some((o) => o.id === updated.id)
+                  ? prev.map((o) => (o.id === updated.id ? updated : o))
+                  : [updated, ...prev],
+              );
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const id = (payload.old as { id: string }).id;
+            setOrders((prev) => prev.filter((o) => o.id !== id));
+            setDeletedOrders((prev) => prev.filter((o) => o.id !== id));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const loadDeletedOrders = useCallback(async () => {
     const { data } = await supabase

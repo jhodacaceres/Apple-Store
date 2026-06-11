@@ -4,30 +4,21 @@ import { motion, useReducedMotion } from 'motion/react';
 import {
   ShieldCheck, DeviceMobile, Truck,
   MagnifyingGlass, Package, ShoppingBag, WhatsappLogo,
+  CaretLeft, CaretRight,
 } from '@phosphor-icons/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCatalogProducts } from '../hooks/useCatalogProducts';
 import { getImageUrl, getPhoneImageUrl } from '../lib/storage';
+import { readCache, writeCache } from '../lib/cache';
 import { supabase } from '../lib/supabase';
 import { trackWhatsappClick } from '../lib/analytics';
 import OrderModal from '../components/OrderModal';
 import OrderSuccessOverlay from '../components/OrderSuccessOverlay';
 import type { CatalogProduct, CatalogCategoria, Product } from '../lib/types';
 
-// ─── Caché ────────────────────────────────────────────────
+// ─── Constantes ───────────────────────────────────────────
 const PAGE_SIZE = 8;
 const CK_ACC    = 'az_cat_acc_v1';
 const CK_PHONES = 'az_cat_phones_v1';
-
-function readCache<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? ((JSON.parse(raw) as { data: T[] }).data ?? []) : [];
-  } catch { return []; }
-}
-function writeCache<T>(key: string, data: T[]) {
-  try { localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch {}
-}
 
 // ─── Subcomponentes ───────────────────────────────────────
 type CatalogFilter = CatalogCategoria | 'todas' | 'celulares' | 'macs';
@@ -43,7 +34,7 @@ const CATEGORIAS: { value: CatalogFilter; label: string }[] = [
   { value: 'accesorios', label: 'Accesorios' },
 ];
 
-function Pagination({ page, total, onPrev, onNext }: {
+function HomePagination({ page, total, onPrev, onNext }: {
   page: number; total: number; onPrev: () => void; onNext: () => void;
 }) {
   const pages = Math.ceil(total / PAGE_SIZE);
@@ -56,10 +47,10 @@ function Pagination({ page, total, onPrev, onNext }: {
       <span>{start}–{end} de {total}</span>
       <div className="flex gap-1">
         <button onClick={onPrev} disabled={page === 0} className={btn}>
-          <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+          <CaretLeft className="w-3.5 h-3.5" /> Anterior
         </button>
         <button onClick={onNext} disabled={page >= pages - 1} className={btn}>
-          Siguiente <ChevronRight className="w-3.5 h-3.5" />
+          Siguiente <CaretRight className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
@@ -429,7 +420,7 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
                         );
                       })}
                     </div>
-                    <Pagination page={accPage} total={filtered.length}
+                    <HomePagination page={accPage} total={filtered.length}
                       onPrev={() => setAccPage(p => p - 1)} onNext={() => setAccPage(p => p + 1)} />
                   </>
                 )}
@@ -482,7 +473,7 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
                     );
                   })}
                 </div>
-                <Pagination page={phonePage} total={actualPhones.length}
+                <HomePagination page={phonePage} total={actualPhones.length}
                   onPrev={() => setPhonePage(p => p - 1)} onNext={() => setPhonePage(p => p + 1)} />
               </div>
             ) : null)}
@@ -526,7 +517,7 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
                     );
                   })}
                 </div>
-                <Pagination page={macPage} total={actualMacs.length}
+                <HomePagination page={macPage} total={actualMacs.length}
                   onPrev={() => setMacPage(p => p - 1)} onNext={() => setMacPage(p => p + 1)} />
               </div>
             )}
