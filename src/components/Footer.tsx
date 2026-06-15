@@ -5,7 +5,7 @@ const TRUST = [
   { Icon: ShieldCheck, text: 'Compra segura por WhatsApp' },
   { Icon: Clock,       text: 'Respuesta rápida' },
   { Icon: Truck,       text: 'Envío y retiro en Bolivia' },
-  { Icon: MapPin,      text: 'Santa Cruz, Bolivia' },
+  { Icon: MapPin,      text: 'Cochabamba, Bolivia' },
 ];
 
 export default function Footer() {
