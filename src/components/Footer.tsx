@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Clock, Truck, MapPin } from '@phosphor-icons/react';
 
 const TRUST = [
@@ -63,6 +63,16 @@ export default function Footer() {
           <p className="text-white/20 text-xs">
             © {new Date().getFullYear()} Apple Zone · Bolivia
           </p>
+        </div>
+
+        {/* Enlaces legales */}
+        <div className="flex items-center justify-center gap-5 mt-4">
+          <Link to="/privacidad" className="text-xs text-white/20 hover:text-white/50 transition-colors">
+            Política de Privacidad
+          </Link>
+          <Link to="/terminos" className="text-xs text-white/20 hover:text-white/50 transition-colors">
+            Términos de Servicio
+          </Link>
         </div>
 
       </div>
