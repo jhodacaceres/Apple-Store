@@ -23,12 +23,12 @@ Deno.serve(async (req) => {
     if (!caller) return new Response(JSON.stringify({ error: 'Token inválido' }), { status: 401, headers: corsHeaders });
 
     const { data: callerProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
+      .from('perfiles')
+      .select('rol')
       .eq('id', caller.id)
       .single();
 
-    if (callerProfile?.role !== 'admin') {
+    if (callerProfile?.rol !== 'admin') {
       return new Response(JSON.stringify({ error: 'Solo un administrador puede eliminar usuarios' }), { status: 403, headers: corsHeaders });
     }
 

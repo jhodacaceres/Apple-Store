@@ -1,10 +1,10 @@
 import imageCompression from 'browser-image-compression';
 import { supabase } from './supabase';
-import type { CatalogProduct, Product } from './types';
+import type { Accesorio, Equipo } from './types';
 
 export const STORAGE_BUCKET = 'product-images';
 
-export function getImageUrl(product: Pick<CatalogProduct, 'imagen_path' | 'imagen_url'>): string | null {
+export function getImageUrl(product: Pick<Accesorio, 'imagen_path' | 'imagen_url'>): string | null {
   if (product.imagen_path) {
     const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(product.imagen_path);
     return data.publicUrl;
@@ -12,12 +12,12 @@ export function getImageUrl(product: Pick<CatalogProduct, 'imagen_path' | 'image
   return product.imagen_url ?? null;
 }
 
-export function getPhoneImageUrl(product: Pick<Product, 'image_path' | 'image_url'>): string | null {
-  if (product.image_path) {
-    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(product.image_path);
+export function getPhoneImageUrl(product: Pick<Equipo, 'imagen_path' | 'imagen_url'>): string | null {
+  if (product.imagen_path) {
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(product.imagen_path);
     return data.publicUrl;
   }
-  return product.image_url ?? null;
+  return product.imagen_url ?? null;
 }
 
 export async function uploadProductImage(

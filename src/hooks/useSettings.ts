@@ -1,22 +1,22 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import type { AppSettings } from '../lib/types';
+import type { Configuracion } from '../lib/types';
 
 export function useSettings() {
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [settings, setSettings] = useState<Configuracion | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     supabase
-      .from('settings')
+      .from('configuracion')
       .select('*')
       .single()
       .then(({ data, error: err }) => {
         if (!isMounted) return;
         if (err) setError(err.message);
-        else if (data) setSettings(data as AppSettings);
+        else if (data) setSettings(data as Configuracion);
         setLoading(false);
       });
     return () => { isMounted = false; };
@@ -29,14 +29,35 @@ export function useSettings() {
     userEmail?: string,
   ) => {
     const { data, error: err } = await supabase
-      .from('settings')
-      .update({ contact_phone: phone, whatsapp_message: message, updated_by: userId ?? null, updated_by_email: userEmail ?? null })
+      .from('configuracion')
+      .update({
+        telefono_contacto: phone,
+        mensaje_whatsapp: message,
+        actualizado_por: userId ?? null,
+        actualizado_por_correo: userEmail ?? null,
+      })
       .eq('id', 1)
       .select()
       .single();
-    if (!err && data) setSettings(data as AppSettings);
+    if (!err && data) setSettings(data as Configuracion);
     return err;
   }, []);
 
-  return { settings, loading, error, saveSettings };
+  const saveChatbotSettings = useCallback(async (input: {
+    wa_phone_number_id?: string | null;
+    ia_activa_global?: boolean;
+    ia_modelo?: string;
+    ia_prompt_sistema?: string;
+  }) => {
+    const { data, error: err } = await supabase
+      .from('configuracion')
+      .update(input)
+      .eq('id', 1)
+      .select()
+      .single();
+    if (!err && data) setSettings(data as Configuracion);
+    return err;
+  }, []);
+
+  return { settings, loading, error, saveSettings, saveChatbotSettings };
 }

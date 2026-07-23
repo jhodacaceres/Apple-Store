@@ -12,7 +12,7 @@ import { useAdminTheme } from '../../contexts/AdminThemeContext';
 import { readCache, writeCache } from '../../lib/cache';
 import Pagination from '../../components/Pagination';
 import DateRangeModal from '../../components/DateRangeModal';
-import type { CatalogProduct, CatalogCategoria, Product } from '../../lib/types';
+import type { Accesorio, AccesorioCategoria, AccesorioEliminado, Equipo, EquipoEliminado } from '../../lib/types';
 import type { StorageImage } from '../../lib/storage';
 import { getImageUrl, getPhoneImageUrl } from '../../lib/storage';
 
@@ -28,7 +28,7 @@ const CK_MACS    = 'az_inv_macs_v1';
 // Tipos
 // ──────────────────────────────────────────────────────────
 type FormData = {
-  sku: string; nombre: string; categoria: CatalogCategoria;
+  sku: string; nombre: string; categoria: AccesorioCategoria;
   descripcion: string; precio: string; stock: string;
   imagen_path: string; imagen_url: string; activo: boolean; slug: string;
 };
@@ -37,19 +37,19 @@ const EMPTY_FORM: FormData = {
   descripcion: '', precio: '', stock: '0',
   imagen_path: '', imagen_url: '', activo: true, slug: '',
 };
-const CATEGORIAS: CatalogCategoria[] = ['fundas', 'cargadores', 'cables', 'airpods', 'accesorios'];
+const CATEGORIAS: AccesorioCategoria[] = ['fundas', 'cargadores', 'cables', 'airpods', 'accesorios'];
 
 type PhoneFormData = {
-  model: string; color: string; capacity: string;
-  price: string; imei: string;
-  image_url: string; image_path: string;
-  status: 'available' | 'reserved';
+  modelo: string; color: string; capacidad: string;
+  precio: string; imei: string;
+  imagen_url: string; imagen_path: string;
+  estado: 'disponible' | 'reservado';
   visible_catalogo: boolean;
 };
 const EMPTY_PHONE_FORM: PhoneFormData = {
-  model: '', color: '', capacity: '', price: '',
-  imei: '', image_url: '', image_path: '',
-  status: 'available', visible_catalogo: false,
+  modelo: '', color: '', capacidad: '', precio: '',
+  imei: '', imagen_url: '', imagen_path: '',
+  estado: 'disponible', visible_catalogo: false,
 };
 
 // ──────────────────────────────────────────────────────────
@@ -60,16 +60,15 @@ function fieldClass(dark: boolean) {
     ? 'w-full bg-gray-700 border border-gray-600 text-white placeholder:text-gray-400 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-white/50 transition-all'
     : 'w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:bg-white focus:border-[#0A0A0A] focus:ring-2 focus:ring-black/5 transition-all';
 }
-function statusRow(p: CatalogProduct) {
-  if (p.deleted_at)  return { cls: 'bg-red-50 text-red-600 border-red-200',         label: 'Eliminado'  };
+function statusRow(p: Accesorio) {
   if (!p.activo)     return { cls: 'bg-gray-100 text-gray-500 border-gray-200',      label: 'Inactivo'   };
   if (p.stock === 0) return { cls: 'bg-orange-50 text-orange-600 border-orange-200', label: 'Agotado'    };
   return                    { cls: 'bg-green-50 text-green-700 border-green-200',     label: 'Activo'     };
 }
-function phoneStatusRow(p: Product) {
-  if (p.status === 'sold')     return { cls: 'bg-gray-100 text-gray-500 border-gray-200',   label: 'Vendido'    };
-  if (p.status === 'reserved') return { cls: 'bg-amber-50 text-amber-600 border-amber-200', label: 'Reservado'  };
-  return                              { cls: 'bg-green-50 text-green-700 border-green-200',  label: 'Disponible' };
+function phoneStatusRow(p: Equipo) {
+  if (p.estado === 'vendido')   return { cls: 'bg-gray-100 text-gray-500 border-gray-200',   label: 'Vendido'    };
+  if (p.estado === 'reservado') return { cls: 'bg-amber-50 text-amber-600 border-amber-200', label: 'Reservado'  };
+  return                               { cls: 'bg-green-50 text-green-700 border-green-200',  label: 'Disponible' };
 }
 function toSlug(text: string) {
   return text.toLowerCase()
@@ -87,7 +86,7 @@ function PhoneFormModal({
 }: {
   open: boolean; title: string; form: PhoneFormData; saving: boolean;
   loadingImages: boolean; storageImages: StorageImage[];
-  deviceType: 'phone' | 'mac'; dark?: boolean;
+  deviceType: 'telefono' | 'mac'; dark?: boolean;
   onChange: (f: keyof PhoneFormData, v: string | boolean) => void;
   onSubmit: () => void; onClose: () => void;
   uploadImage: (file: File, sku: string, cat: string) => Promise<string>;
@@ -100,12 +99,12 @@ function PhoneFormModal({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const key = form.imei || form.model.toLowerCase().replace(/\s+/g, '-') || 'device';
+    const key = form.imei || form.modelo.toLowerCase().replace(/\s+/g, '-') || 'device';
     setUploading(true);
     setUploadError(null);
     try {
       const path = await uploadImage(file, key, deviceType === 'mac' ? 'macs' : 'celulares');
-      onChange('image_path', path);
+      onChange('imagen_path', path);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'No se pudo subir la imagen');
     }
@@ -115,9 +114,9 @@ function PhoneFormModal({
   if (!open) return null;
 
   const FIELD      = fieldClass(dark);
-  const previewUrl = form.image_path
-    ? getPhoneImageUrl({ image_path: form.image_path, image_url: null }) ?? ''
-    : form.image_url;
+  const previewUrl = form.imagen_path
+    ? getPhoneImageUrl({ imagen_path: form.imagen_path, imagen_url: null }) ?? ''
+    : form.imagen_url;
 
   const capacityLabel       = deviceType === 'mac' ? 'Almacenamiento' : 'Capacidad';
   const capacityPlaceholder = deviceType === 'mac' ? '512GB SSD' : '256GB';
@@ -138,9 +137,9 @@ function PhoneFormModal({
         <div className="overflow-y-auto flex-1 p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="col-span-2">
             <label className={labelCls}>Modelo *</label>
-            <input className={FIELD} value={form.model}
+            <input className={FIELD} value={form.modelo}
               placeholder={deviceType === 'mac' ? 'MacBook Air M2' : 'iPhone 15 Pro'}
-              onChange={(e) => onChange('model', e.target.value)} />
+              onChange={(e) => onChange('modelo', e.target.value)} />
           </div>
           <div>
             <label className={labelCls}>Color</label>
@@ -150,14 +149,14 @@ function PhoneFormModal({
           </div>
           <div>
             <label className={labelCls}>{capacityLabel}</label>
-            <input className={FIELD} value={form.capacity} placeholder={capacityPlaceholder}
-              onChange={(e) => onChange('capacity', e.target.value)} />
+            <input className={FIELD} value={form.capacidad} placeholder={capacityPlaceholder}
+              onChange={(e) => onChange('capacidad', e.target.value)} />
           </div>
           <div>
             <label className={labelCls}>Precio (Bs) *</label>
-            <input className={FIELD} type="number" min="0" step="0.01" value={form.price}
+            <input className={FIELD} type="number" min="0" step="0.01" value={form.precio}
               placeholder={deviceType === 'mac' ? '8500.00' : '5200.00'}
-              onChange={(e) => onChange('price', e.target.value)} />
+              onChange={(e) => onChange('precio', e.target.value)} />
           </div>
           <div>
             <label className={labelCls}>{imeiLabel} <span className="text-gray-400">(opcional)</span></label>
@@ -188,8 +187,8 @@ function PhoneFormModal({
               ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-40 overflow-y-auto">
                   {storageImages.map((img) => (
-                    <button key={img.path} onClick={() => onChange('image_path', img.path)}
-                      className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${form.image_path === img.path ? 'border-[#0A0A0A] scale-95' : `border-transparent ${dark ? 'hover:border-gray-500' : 'hover:border-gray-300'}`}`}>
+                    <button key={img.path} onClick={() => onChange('imagen_path', img.path)}
+                      className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${form.imagen_path === img.path ? 'border-[#0A0A0A] scale-95' : `border-transparent ${dark ? 'hover:border-gray-500' : 'hover:border-gray-300'}`}`}>
                       <img src={img.publicUrl} alt={img.name} className="w-full h-full object-cover" />
                     </button>
                   ))}
@@ -207,11 +206,11 @@ function PhoneFormModal({
                 {uploadError && (
                   <p className="text-xs text-red-500 mt-2">{uploadError}</p>
                 )}
-                {!form.image_path && (
+                {!form.imagen_path && (
                   <div className="mt-2">
                     <label className="block text-xs text-gray-400 mb-1">O pega una URL directa</label>
-                    <input className={FIELD} value={form.image_url} placeholder="https://…"
-                      onChange={(e) => onChange('image_url', e.target.value)} />
+                    <input className={FIELD} value={form.imagen_url} placeholder="https://…"
+                      onChange={(e) => onChange('imagen_url', e.target.value)} />
                   </div>
                 )}
               </div>
@@ -220,9 +219,9 @@ function PhoneFormModal({
               <div className={`mt-3 flex items-center gap-3 p-2 rounded-xl border ${dark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-100'}`}>
                 <img src={previewUrl} alt="preview" className="w-12 h-12 object-contain rounded-lg bg-white" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-500 truncate">{form.image_path || 'URL externa'}</p>
+                  <p className="text-xs text-gray-500 truncate">{form.imagen_path || 'URL externa'}</p>
                 </div>
-                <button onClick={() => { onChange('image_path', ''); onChange('image_url', ''); }}
+                <button onClick={() => { onChange('imagen_path', ''); onChange('imagen_url', ''); }}
                   className={`p-1 rounded-lg text-gray-400 ${dark ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}>
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -233,10 +232,10 @@ function PhoneFormModal({
           <div className="col-span-2">
             <label className={labelCls}>Estado</label>
             <div className="relative">
-              <select className={`${FIELD} appearance-none pr-8`} value={form.status}
-                onChange={(e) => onChange('status', e.target.value)}>
-                <option value="available">Disponible</option>
-                <option value="reserved">Reservado</option>
+              <select className={`${FIELD} appearance-none pr-8`} value={form.estado}
+                onChange={(e) => onChange('estado', e.target.value)}>
+                <option value="disponible">Disponible</option>
+                <option value="reservado">Reservado</option>
               </select>
               <CaretDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -258,7 +257,7 @@ function PhoneFormModal({
             className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${dark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'}`}>
             Cancelar
           </button>
-          <button onClick={onSubmit} disabled={saving || !form.model || !form.price}
+          <button onClick={onSubmit} disabled={saving || !form.modelo || !form.precio}
             className={`px-6 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center gap-2 ${dark ? 'bg-white text-gray-900 hover:bg-gray-100' : 'bg-[#0A0A0A] text-white hover:bg-gray-800'}`}>
             {saving && <span className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${dark ? 'border-gray-900' : 'border-white'}`} />}
             Guardar
@@ -465,10 +464,10 @@ function DeviceTable({
   onEdit, onDelete, onToggleVisibility, dark = false,
   page, totalItems, onPrev, onNext,
 }: {
-  items: Product[]; loading: boolean;
+  items: Equipo[]; loading: boolean;
   emptyIcon: React.ElementType; emptyText: string;
-  onEdit: (p: Product) => void; onDelete: (p: Product) => void;
-  onToggleVisibility: (p: Product) => void; dark?: boolean;
+  onEdit: (p: Equipo) => void; onDelete: (p: Equipo) => void;
+  onToggleVisibility: (p: Equipo) => void; dark?: boolean;
   page: number; totalItems: number; onPrev: () => void; onNext: () => void;
 }) {
   return (
@@ -507,17 +506,17 @@ function DeviceTable({
                 <tr key={p.id} className={`border-b transition-colors ${dark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-50 hover:bg-[#FAFAFA]'}`}>
                   <td className="pl-4 py-3 w-12">
                     {imgUrl ? (
-                      <img src={imgUrl} alt={p.model} className={`w-10 h-10 object-contain rounded-lg border ${dark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-100'}`} />
+                      <img src={imgUrl} alt={p.modelo} className={`w-10 h-10 object-contain rounded-lg border ${dark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-100'}`} />
                     ) : (
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${dark ? 'bg-gray-700' : 'bg-gray-100'}`}>
                         <EmptyIcon className={`w-4 h-4 ${dark ? 'text-gray-500' : 'text-gray-300'}`} />
                       </div>
                     )}
                   </td>
-                  <td className={`px-4 py-3 font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{p.model}</td>
+                  <td className={`px-4 py-3 font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{p.modelo}</td>
                   <td className="px-4 py-3 text-gray-400">{p.color ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-400">{p.capacity ?? '—'}</td>
-                  <td className={`px-4 py-3 font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(p.price).toLocaleString('es-BO')}</td>
+                  <td className="px-4 py-3 text-gray-400">{p.capacidad ?? '—'}</td>
+                  <td className={`px-4 py-3 font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(p.precio).toLocaleString('es-BO')}</td>
                   <td className="px-4 py-3">
                     <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${cls}`}>{label}</span>
                   </td>
@@ -555,8 +554,8 @@ function DeletedDeviceTable({
   items, emptyIcon: EmptyIcon, onRestore, onHardDelete, dark = false,
   page, totalItems, onPrev, onNext,
 }: {
-  items: Product[]; emptyIcon: React.ElementType;
-  onRestore: (p: Product) => void; onHardDelete: (p: Product) => void; dark?: boolean;
+  items: EquipoEliminado[]; emptyIcon: React.ElementType;
+  onRestore: (p: EquipoEliminado) => void; onHardDelete: (p: EquipoEliminado) => void; dark?: boolean;
   page: number; totalItems: number; onPrev: () => void; onNext: () => void;
 }) {
   return (
@@ -579,12 +578,73 @@ function DeletedDeviceTable({
             <tbody>
               {items.map((p) => (
                 <tr key={p.id} className={`border-b opacity-60 ${dark ? 'border-gray-700' : 'border-gray-50'}`}>
-                  <td className={`px-4 py-3 font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{p.model}</td>
+                  <td className={`px-4 py-3 font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{p.modelo}</td>
                   <td className="px-4 py-3 text-gray-400">{p.color ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-400">{p.capacity ?? '—'}</td>
-                  <td className={`px-4 py-3 font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(p.price).toLocaleString('es-BO')}</td>
+                  <td className="px-4 py-3 text-gray-400">{p.capacidad ?? '—'}</td>
+                  <td className={`px-4 py-3 font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(p.precio).toLocaleString('es-BO')}</td>
                   <td className="px-4 py-3 text-xs text-gray-400">
-                    {p.deleted_at ? new Date(p.deleted_at).toLocaleDateString('es-BO') : '—'}
+                    {p.eliminado_en ? new Date(p.eliminado_en).toLocaleDateString('es-BO') : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => onRestore(p)} title="Recuperar"
+                        className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-emerald-900/30 hover:text-emerald-400' : 'hover:bg-emerald-50 hover:text-emerald-600'}`}>
+                        <ArrowCounterClockwise className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => onHardDelete(p)} title="Eliminar definitivamente"
+                        className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}>
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <Pagination page={page} total={totalItems} pageSize={PAGE_SIZE} dark={dark} onPrev={onPrev} onNext={onNext} />
+        </>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
+// Sub-tabla — accesorios eliminados (items ya paginados)
+// ──────────────────────────────────────────────────────────
+function DeletedCatalogTable({
+  items, onRestore, onHardDelete, dark = false,
+  page, totalItems, onPrev, onNext,
+}: {
+  items: AccesorioEliminado[];
+  onRestore: (p: AccesorioEliminado) => void; onHardDelete: (p: AccesorioEliminado) => void; dark?: boolean;
+  page: number; totalItems: number; onPrev: () => void; onNext: () => void;
+}) {
+  return (
+    <div className={`rounded-2xl shadow-sm border overflow-x-auto ${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+      {items.length === 0 && totalItems === 0 ? (
+        <div className="p-12 text-center">
+          <Package className={`w-10 h-10 mx-auto mb-2 ${dark ? 'text-gray-600' : 'text-gray-200'}`} />
+          <p className="text-gray-400 text-sm">No hay eliminados.</p>
+        </div>
+      ) : (
+        <>
+          <table className="w-full text-left text-sm min-w-[600px]">
+            <thead>
+              <tr className={`border-b ${dark ? 'border-gray-700' : 'border-gray-100'}`}>
+                {['SKU', 'Nombre', 'Categoría', 'Precio (Bs)', 'Eliminado', 'Acciones'].map((h) => (
+                  <th key={h} className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((p) => (
+                <tr key={p.id} className={`border-b opacity-60 ${dark ? 'border-gray-700' : 'border-gray-50'}`}>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-400">{p.sku}</td>
+                  <td className={`px-4 py-3 font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{p.nombre}</td>
+                  <td className="px-4 py-3 text-gray-400 capitalize">{p.categoria}</td>
+                  <td className={`px-4 py-3 font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(p.precio).toLocaleString('es-BO')}</td>
+                  <td className="px-4 py-3 text-xs text-gray-400">
+                    {p.eliminado_en ? new Date(p.eliminado_en).toLocaleDateString('es-BO') : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
@@ -622,8 +682,8 @@ export default function Inventory() {
 
   // ── Hooks de datos ──
   const {
-    products, loading, addProduct, updateProduct,
-    softDeleteProduct, restoreProduct, hardDeleteProduct,
+    products, deletedProducts: deletedCatalog, loading, addProduct, updateProduct,
+    softDeleteProduct, restoreProduct, hardDeleteProduct, loadDeletedProducts: loadDeletedCatalog,
     toggleActive, uploadImage, listStorageImages,
     reload: reloadCatalog,
   } = useCatalogAdmin();
@@ -633,7 +693,7 @@ export default function Inventory() {
     addProduct: addPhone, updateProduct: updatePhone, deleteProduct: deletePhone,
     restoreProduct: restorePhone, hardDeleteProduct: hardDeletePhone,
     loadDeletedProducts: loadDeletedPhones, reload: reloadPhones,
-  } = useProducts('phone');
+  } = useProducts('telefono');
 
   const {
     products: macs, deletedProducts: deletedMacs, loading: loadingMacs,
@@ -643,9 +703,9 @@ export default function Inventory() {
   } = useProducts('mac');
 
   // ── Caché inicial ──
-  const [cachedCatalog] = useState<CatalogProduct[]>(() => readCache(CK_CATALOG));
-  const [cachedPhones]  = useState<Product[]>(() => readCache(CK_PHONES));
-  const [cachedMacs]    = useState<Product[]>(() => readCache(CK_MACS));
+  const [cachedCatalog] = useState<Accesorio[]>(() => readCache(CK_CATALOG));
+  const [cachedPhones]  = useState<Equipo[]>(() => readCache(CK_PHONES));
+  const [cachedMacs]    = useState<Equipo[]>(() => readCache(CK_MACS));
 
   // Datos a mostrar: caché mientras carga, luego datos frescos
   const catalogData = (loading && products.length === 0)     ? cachedCatalog : products;
@@ -657,16 +717,19 @@ export default function Inventory() {
   useEffect(() => { if (!loadingPhones) writeCache(CK_PHONES,  phones);   }, [phones, loadingPhones]);
   useEffect(() => { if (!loadingMacs)   writeCache(CK_MACS,    macs);     }, [macs, loadingMacs]);
 
+  // Cargar la papelera una vez al montar, para que los contadores sean exactos
+  useEffect(() => { loadDeletedCatalog(); }, [loadDeletedCatalog]);
+
   // ── Real-time: sync desde cualquier cuenta ──
   useEffect(() => {
     const catalogCh = supabase
       .channel('inv_catalog_rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'catalog_products' }, () => { reloadCatalog(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'accesorios' }, () => { reloadCatalog(); })
       .subscribe();
 
     const productsCh = supabase
       .channel('inv_products_rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipos' }, () => {
         reloadPhones();
         reloadMacs();
       })
@@ -683,15 +746,15 @@ export default function Inventory() {
 
   // ── Estado accesorios ──
   const [query, setQuery]               = useState('');
-  const [catFilter, setCatFilter]       = useState<CatalogCategoria | 'todas'>('todas');
+  const [catFilter, setCatFilter]       = useState<AccesorioCategoria | 'todas'>('todas');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('activos');
   const [modalOpen, setModalOpen]       = useState(false);
-  const [editTarget, setEditTarget]     = useState<CatalogProduct | null>(null);
+  const [editTarget, setEditTarget]     = useState<Accesorio | null>(null);
   const [form, setForm]                 = useState<FormData>(EMPTY_FORM);
   const [saving, setSaving]             = useState(false);
-  const [confirmDelete, setConfirmDelete]                       = useState<CatalogProduct | null>(null);
-  const [confirmRestoreCatalog, setConfirmRestoreCatalog]       = useState<CatalogProduct | null>(null);
-  const [confirmHardDeleteCatalog, setConfirmHardDeleteCatalog] = useState<CatalogProduct | null>(null);
+  const [confirmDelete, setConfirmDelete]                       = useState<Accesorio | null>(null);
+  const [confirmRestoreCatalog, setConfirmRestoreCatalog]       = useState<AccesorioEliminado | null>(null);
+  const [confirmHardDeleteCatalog, setConfirmHardDeleteCatalog] = useState<AccesorioEliminado | null>(null);
   const [storageImages, setStorageImages] = useState<StorageImage[]>([]);
   const [loadingImages, setLoadingImages] = useState(false);
 
@@ -699,32 +762,33 @@ export default function Inventory() {
   const [phoneQuery, setPhoneQuery]         = useState('');
   const [phoneFilter, setPhoneFilter]       = useState<PhoneFilter>('todos');
   const [phoneModalOpen, setPhoneModalOpen] = useState(false);
-  const [editPhone, setEditPhone]           = useState<Product | null>(null);
+  const [editPhone, setEditPhone]           = useState<Equipo | null>(null);
   const [phoneForm, setPhoneForm]           = useState<PhoneFormData>(EMPTY_PHONE_FORM);
   const [savingPhone, setSavingPhone]       = useState(false);
-  const [confirmDeletePhone, setConfirmDeletePhone]         = useState<Product | null>(null);
-  const [confirmHardDeletePhone, setConfirmHardDeletePhone] = useState<Product | null>(null);
+  const [confirmDeletePhone, setConfirmDeletePhone]         = useState<Equipo | null>(null);
+  const [confirmHardDeletePhone, setConfirmHardDeletePhone] = useState<EquipoEliminado | null>(null);
 
   // ── Estado Macs ──
   const [macQuery, setMacQuery]         = useState('');
   const [macFilter, setMacFilter]       = useState<PhoneFilter>('todos');
   const [macModalOpen, setMacModalOpen] = useState(false);
-  const [editMac, setEditMac]           = useState<Product | null>(null);
+  const [editMac, setEditMac]           = useState<Equipo | null>(null);
   const [macForm, setMacForm]           = useState<PhoneFormData>(EMPTY_PHONE_FORM);
   const [savingMac, setSavingMac]       = useState(false);
-  const [confirmDeleteMac, setConfirmDeleteMac]         = useState<Product | null>(null);
-  const [confirmHardDeleteMac, setConfirmHardDeleteMac] = useState<Product | null>(null);
+  const [confirmDeleteMac, setConfirmDeleteMac]         = useState<Equipo | null>(null);
+  const [confirmHardDeleteMac, setConfirmHardDeleteMac] = useState<EquipoEliminado | null>(null);
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // ── Paginación ──
   const [accPage,      setAccPage]      = useState(0);
+  const [accDelPage,   setAccDelPage]   = useState(0);
   const [phonePage,    setPhonePage]    = useState(0);
   const [phoneDelPage, setPhoneDelPage] = useState(0);
   const [macPage,      setMacPage]      = useState(0);
   const [macDelPage,   setMacDelPage]   = useState(0);
 
-  useEffect(() => { setAccPage(0);      }, [query, catFilter, statusFilter]);
+  useEffect(() => { setAccPage(0); setAccDelPage(0); }, [query, catFilter, statusFilter]);
   useEffect(() => { setPhonePage(0);    }, [phoneQuery, phoneFilter]);
   useEffect(() => { setMacPage(0);      }, [macQuery, macFilter]);
 
@@ -740,26 +804,44 @@ export default function Inventory() {
     const q = query.toLowerCase();
     return catalogData.filter((p) => {
       const matchStatus =
-        statusFilter === 'todos'      ? true :
-        statusFilter === 'eliminados' ? !!p.deleted_at :
-        statusFilter === 'inactivos'  ? (!p.activo && !p.deleted_at) :
-        (p.activo && !p.deleted_at);
+        statusFilter === 'todos'     ? true :
+        statusFilter === 'inactivos' ? !p.activo :
+        statusFilter === 'eliminados' ? false :
+        p.activo;
       const matchCat = catFilter === 'todas' || p.categoria === catFilter;
       const matchQ   = !q || p.nombre.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
       return matchStatus && matchCat && matchQ;
     });
   }, [catalogData, query, catFilter, statusFilter]);
 
+  const filteredDeletedCatalog = useMemo(() => {
+    const q = query.toLowerCase();
+    return deletedCatalog.filter((p) => {
+      const matchCat = catFilter === 'todas' || p.categoria === catFilter;
+      const matchQ   = !q || p.nombre.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+      return matchCat && matchQ;
+    });
+  }, [deletedCatalog, query, catFilter]);
+
   const paginatedCatalog = useMemo(
     () => filtered.slice(accPage * PAGE_SIZE, (accPage + 1) * PAGE_SIZE),
     [filtered, accPage],
   );
+  const paginatedDeletedCatalog = useMemo(
+    () => filteredDeletedCatalog.slice(accDelPage * PAGE_SIZE, (accDelPage + 1) * PAGE_SIZE),
+    [filteredDeletedCatalog, accDelPage],
+  );
 
   const counts = useMemo(() => ({
-    activos:    catalogData.filter((p) => p.activo && !p.deleted_at).length,
-    inactivos:  catalogData.filter((p) => !p.activo && !p.deleted_at).length,
-    eliminados: catalogData.filter((p) => !!p.deleted_at).length,
-  }), [catalogData]);
+    activos:    catalogData.filter((p) => p.activo).length,
+    inactivos:  catalogData.filter((p) => !p.activo).length,
+    eliminados: deletedCatalog.length,
+  }), [catalogData, deletedCatalog]);
+
+  const handleStatusFilterChange = async (s: FilterStatus) => {
+    setStatusFilter(s);
+    if (s === 'eliminados') await loadDeletedCatalog();
+  };
 
   // ── Filtros celulares ──
   const filteredPhones = useMemo(() => {
@@ -769,9 +851,9 @@ export default function Inventory() {
         phoneFilter === 'todos'     ? true :
         phoneFilter === 'activos'   ? p.visible_catalogo === true :
         phoneFilter === 'inactivos' ? p.visible_catalogo === false :
-        phoneFilter === 'reserved'  ? p.status === 'reserved' :
+        phoneFilter === 'reserved'  ? p.estado === 'reservado' :
         true;
-      return matchStatus && (!q || p.model.toLowerCase().includes(q) || (p.color ?? '').toLowerCase().includes(q) || (p.imei ?? '').toLowerCase().includes(q));
+      return matchStatus && (!q || p.modelo.toLowerCase().includes(q) || (p.color ?? '').toLowerCase().includes(q) || (p.imei ?? '').toLowerCase().includes(q));
     });
   }, [phonesData, phoneQuery, phoneFilter]);
 
@@ -786,9 +868,9 @@ export default function Inventory() {
         macFilter === 'todos'     ? true :
         macFilter === 'activos'   ? p.visible_catalogo === true :
         macFilter === 'inactivos' ? p.visible_catalogo === false :
-        macFilter === 'reserved'  ? p.status === 'reserved' :
+        macFilter === 'reserved'  ? p.estado === 'reservado' :
         true;
-      return matchStatus && (!q || p.model.toLowerCase().includes(q) || (p.color ?? '').toLowerCase().includes(q) || (p.imei ?? '').toLowerCase().includes(q));
+      return matchStatus && (!q || p.modelo.toLowerCase().includes(q) || (p.color ?? '').toLowerCase().includes(q) || (p.imei ?? '').toLowerCase().includes(q));
     });
   }, [macsData, macQuery, macFilter]);
 
@@ -797,7 +879,7 @@ export default function Inventory() {
 
   // ── Handlers accesorios ──
   const openAdd  = () => { setEditTarget(null); setForm(EMPTY_FORM); setModalOpen(true); };
-  const openEdit = (p: CatalogProduct) => {
+  const openEdit = (p: Accesorio) => {
     setEditTarget(p);
     setForm({ sku: p.sku, nombre: p.nombre, categoria: p.categoria, descripcion: p.descripcion ?? '', precio: String(p.precio), stock: String(p.stock), imagen_path: p.imagen_path ?? '', imagen_url: p.imagen_url ?? '', activo: p.activo, slug: p.slug });
     setModalOpen(true);
@@ -818,9 +900,9 @@ export default function Inventory() {
 
   // ── Handlers celulares ──
   const openAddPhone  = () => { setEditPhone(null); setPhoneForm(EMPTY_PHONE_FORM); setPhoneModalOpen(true); };
-  const openEditPhone = (p: Product) => {
+  const openEditPhone = (p: Equipo) => {
     setEditPhone(p);
-    setPhoneForm({ model: p.model, color: p.color ?? '', capacity: p.capacity ?? '', price: String(p.price), imei: p.imei ?? '', image_url: p.image_url ?? '', image_path: p.image_path ?? '', status: p.status === 'sold' ? 'available' : p.status, visible_catalogo: p.visible_catalogo ?? false });
+    setPhoneForm({ modelo: p.modelo, color: p.color ?? '', capacidad: p.capacidad ?? '', precio: String(p.precio), imei: p.imei ?? '', imagen_url: p.imagen_url ?? '', imagen_path: p.imagen_path ?? '', estado: p.estado === 'vendido' ? 'disponible' : p.estado, visible_catalogo: p.visible_catalogo ?? false });
     setPhoneModalOpen(true);
   };
   const handlePhoneChange = (field: keyof PhoneFormData, value: string | boolean) =>
@@ -828,7 +910,7 @@ export default function Inventory() {
 
   const handlePhoneSubmit = async () => {
     setSavingPhone(true);
-    const payload = { model: phoneForm.model, color: phoneForm.color || null, capacity: phoneForm.capacity || null, price: parseFloat(phoneForm.price), imei: phoneForm.imei || null, image_url: phoneForm.image_url || null, image_path: phoneForm.image_path || null, status: phoneForm.status, visible_catalogo: phoneForm.visible_catalogo };
+    const payload = { modelo: phoneForm.modelo, color: phoneForm.color || null, capacidad: phoneForm.capacidad || null, precio: parseFloat(phoneForm.precio), imei: phoneForm.imei || null, imagen_url: phoneForm.imagen_url || null, imagen_path: phoneForm.imagen_path || null, estado: phoneForm.estado, visible_catalogo: phoneForm.visible_catalogo };
     try {
       if (editPhone) await updatePhone(editPhone.id, payload);
       else await addPhone(payload as Parameters<typeof addPhone>[0]);
@@ -844,9 +926,9 @@ export default function Inventory() {
 
   // ── Handlers Macs ──
   const openAddMac  = () => { setEditMac(null); setMacForm(EMPTY_PHONE_FORM); setMacModalOpen(true); };
-  const openEditMac = (p: Product) => {
+  const openEditMac = (p: Equipo) => {
     setEditMac(p);
-    setMacForm({ model: p.model, color: p.color ?? '', capacity: p.capacity ?? '', price: String(p.price), imei: p.imei ?? '', image_url: p.image_url ?? '', image_path: p.image_path ?? '', status: p.status === 'sold' ? 'available' : p.status, visible_catalogo: p.visible_catalogo ?? false });
+    setMacForm({ modelo: p.modelo, color: p.color ?? '', capacidad: p.capacidad ?? '', precio: String(p.precio), imei: p.imei ?? '', imagen_url: p.imagen_url ?? '', imagen_path: p.imagen_path ?? '', estado: p.estado === 'vendido' ? 'disponible' : p.estado, visible_catalogo: p.visible_catalogo ?? false });
     setMacModalOpen(true);
   };
   const handleMacChange = (field: keyof PhoneFormData, value: string | boolean) =>
@@ -854,7 +936,7 @@ export default function Inventory() {
 
   const handleMacSubmit = async () => {
     setSavingMac(true);
-    const payload = { model: macForm.model, color: macForm.color || null, capacity: macForm.capacity || null, price: parseFloat(macForm.price), imei: macForm.imei || null, image_url: macForm.image_url || null, image_path: macForm.image_path || null, status: macForm.status, visible_catalogo: macForm.visible_catalogo };
+    const payload = { modelo: macForm.modelo, color: macForm.color || null, capacidad: macForm.capacidad || null, precio: parseFloat(macForm.precio), imei: macForm.imei || null, imagen_url: macForm.imagen_url || null, imagen_path: macForm.imagen_path || null, estado: macForm.estado, visible_catalogo: macForm.visible_catalogo };
     try {
       if (editMac) await updateMac(editMac.id, payload);
       else await addMac(payload as Parameters<typeof addMac>[0]);
@@ -871,23 +953,23 @@ export default function Inventory() {
   // ── Exportar ──
   const handleExport = (from: Date | null, to: Date | null) => {
     setExportModalOpen(false);
-    const filterByDate = <T extends { updated_at?: string; created_at?: string }>(data: T[]) => {
+    const filterByDate = <T extends { actualizado_en?: string; creado_en?: string }>(data: T[]) => {
       if (!from && !to) return data;
       return data.filter((p) => {
-        const d = new Date((p as { updated_at?: string }).updated_at ?? (p as { created_at?: string }).created_at ?? '');
+        const d = new Date((p as { actualizado_en?: string }).actualizado_en ?? (p as { creado_en?: string }).creado_en ?? '');
         if (from && d < from) return false;
         if (to && d > to)     return false;
         return true;
       });
     };
     if (mainTab === 'accesorios') {
-      const rows = filterByDate(products).map((p) => ({ SKU: p.sku, Nombre: p.nombre, Categoría: p.categoria, 'Precio (Bs)': p.precio, Stock: p.stock, Activo: p.activo ? 'Sí' : 'No', Eliminado: p.deleted_at ? 'Sí' : 'No' }));
+      const rows = filterByDate(products).map((p) => ({ SKU: p.sku, Nombre: p.nombre, Categoría: p.categoria, 'Precio (Bs)': p.precio, Stock: p.stock, Activo: p.activo ? 'Sí' : 'No' }));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Accesorios');
       XLSX.writeFile(wb, `apple-zone-accesorios-${new Date().toISOString().slice(0, 10)}.xlsx`);
     } else {
       const data = mainTab === 'macs' ? macs : phones;
-      const rows = filterByDate(data).map((p) => ({ Modelo: p.model, Color: p.color ?? '', Capacidad: p.capacity ?? '', IMEI: p.imei ?? '', 'Precio (Bs)': p.price, Estado: { available: 'Disponible', sold: 'Vendido', reserved: 'Reservado' }[p.status], Registrado: new Date(p.created_at).toLocaleDateString('es-BO') }));
+      const rows = filterByDate(data).map((p) => ({ Modelo: p.modelo, Color: p.color ?? '', Capacidad: p.capacidad ?? '', IMEI: p.imei ?? '', 'Precio (Bs)': p.precio, Estado: { disponible: 'Disponible', vendido: 'Vendido', reservado: 'Reservado' }[p.estado], Registrado: new Date(p.creado_en).toLocaleDateString('es-BO') }));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), mainTab === 'macs' ? 'Macs' : 'Celulares');
       XLSX.writeFile(wb, `apple-zone-${mainTab}-${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -900,8 +982,8 @@ export default function Inventory() {
     { value: 'eliminados', label: 'Eliminados' },
   ] as { value: PhoneFilter; label: string }[]);
 
-  const handlePhoneToggleVisibility = (p: Product) => updatePhone(p.id, { visible_catalogo: !p.visible_catalogo });
-  const handleMacToggleVisibility   = (p: Product) => updateMac(p.id, { visible_catalogo: !p.visible_catalogo });
+  const handlePhoneToggleVisibility = (p: Equipo) => updatePhone(p.id, { visible_catalogo: !p.visible_catalogo });
+  const handleMacToggleVisibility   = (p: Equipo) => updateMac(p.id, { visible_catalogo: !p.visible_catalogo });
 
   const filterBtnCls = (active: boolean) =>
     `px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${active
@@ -947,19 +1029,19 @@ export default function Inventory() {
       </>)}
 
       {/* ── Modales celulares ── */}
-      <PhoneFormModal open={phoneModalOpen} title={editPhone ? 'Editar celular' : 'Nuevo celular'} form={phoneForm} onChange={handlePhoneChange} onSubmit={handlePhoneSubmit} onClose={() => setPhoneModalOpen(false)} saving={savingPhone} uploadImage={uploadImage} storageImages={storageImages} loadingImages={loadingImages} deviceType="phone" dark={dark} />
+      <PhoneFormModal open={phoneModalOpen} title={editPhone ? 'Editar celular' : 'Nuevo celular'} form={phoneForm} onChange={handlePhoneChange} onSubmit={handlePhoneSubmit} onClose={() => setPhoneModalOpen(false)} saving={savingPhone} uploadImage={uploadImage} storageImages={storageImages} loadingImages={loadingImages} deviceType="telefono" dark={dark} />
 
       {confirmDeletePhone && confirmModal(<>
         <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><Trash className="w-5 h-5 text-red-600" /></div>
         <h3 className={`font-black text-lg mb-2 ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>¿Eliminar celular?</h3>
-        <p className="text-sm text-gray-400 mb-1">{confirmDeletePhone.model} {confirmDeletePhone.color ?? ''} {confirmDeletePhone.capacity ?? ''}</p>
+        <p className="text-sm text-gray-400 mb-1">{confirmDeletePhone.modelo} {confirmDeletePhone.color ?? ''} {confirmDeletePhone.capacidad ?? ''}</p>
         <p className={`text-xs mb-6 ${dark ? 'text-gray-500' : 'text-gray-300'}`}>Podrás recuperarlo desde "Eliminados".</p>
         <div className="flex gap-3">{cancelBtn(() => setConfirmDeletePhone(null))}<button onClick={async () => { await deletePhone(confirmDeletePhone.id); setConfirmDeletePhone(null); }} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700">Eliminar</button></div>
       </>)}
 
       {confirmHardDeletePhone && confirmModal(<>
         <h3 className={`font-black text-lg mb-2 ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Eliminar definitivamente</h3>
-        <p className="text-sm text-gray-400 mb-2">{confirmHardDeletePhone.model}</p>
+        <p className="text-sm text-gray-400 mb-2">{confirmHardDeletePhone.modelo}</p>
         <p className="text-xs text-red-400 mb-6">Esta acción es irreversible.</p>
         <div className="flex gap-3">{cancelBtn(() => setConfirmHardDeletePhone(null))}<button onClick={async () => { await hardDeletePhone(confirmHardDeletePhone.id); setConfirmHardDeletePhone(null); }} className="flex-1 py-2.5 bg-red-700 text-white rounded-xl text-sm font-semibold hover:bg-red-800">Eliminar</button></div>
       </>)}
@@ -970,14 +1052,14 @@ export default function Inventory() {
       {confirmDeleteMac && confirmModal(<>
         <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><Trash className="w-5 h-5 text-red-600" /></div>
         <h3 className={`font-black text-lg mb-2 ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>¿Eliminar Mac?</h3>
-        <p className="text-sm text-gray-400 mb-1">{confirmDeleteMac.model} {confirmDeleteMac.color ?? ''}</p>
+        <p className="text-sm text-gray-400 mb-1">{confirmDeleteMac.modelo} {confirmDeleteMac.color ?? ''}</p>
         <p className={`text-xs mb-6 ${dark ? 'text-gray-500' : 'text-gray-300'}`}>Podrás recuperarla desde "Eliminados".</p>
         <div className="flex gap-3">{cancelBtn(() => setConfirmDeleteMac(null))}<button onClick={async () => { await deleteMac(confirmDeleteMac.id); setConfirmDeleteMac(null); }} className="flex-1 py-2.5 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700">Eliminar</button></div>
       </>)}
 
       {confirmHardDeleteMac && confirmModal(<>
         <h3 className={`font-black text-lg mb-2 ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Eliminar definitivamente</h3>
-        <p className="text-sm text-gray-400 mb-2">{confirmHardDeleteMac.model}</p>
+        <p className="text-sm text-gray-400 mb-2">{confirmHardDeleteMac.modelo}</p>
         <p className="text-xs text-red-400 mb-6">Esta acción es irreversible.</p>
         <div className="flex gap-3">{cancelBtn(() => setConfirmHardDeleteMac(null))}<button onClick={async () => { await hardDeleteMac(confirmHardDeleteMac.id); setConfirmHardDeleteMac(null); }} className="flex-1 py-2.5 bg-red-700 text-white rounded-xl text-sm font-semibold hover:bg-red-800">Eliminar</button></div>
       </>)}
@@ -997,8 +1079,8 @@ export default function Inventory() {
             {mainTab === 'accesorios'
               ? `${counts.activos} activos · ${counts.inactivos} inactivos · ${counts.eliminados} eliminados`
               : mainTab === 'celulares'
-                ? `${phonesData.filter(p => p.status === 'available').length} disponibles · ${phonesData.filter(p => p.status === 'sold').length} vendidos`
-                : `${macsData.filter(p => p.status === 'available').length} disponibles · ${macsData.filter(p => p.status === 'sold').length} vendidos`}
+                ? `${phonesData.filter(p => p.estado === 'disponible').length} disponibles · ${phonesData.filter(p => p.estado === 'vendido').length} vendidos`
+                : `${macsData.filter(p => p.estado === 'disponible').length} disponibles · ${macsData.filter(p => p.estado === 'vendido').length} vendidos`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1050,7 +1132,7 @@ export default function Inventory() {
                 className={`outline-none text-sm w-full bg-transparent ${dark ? 'text-white placeholder:text-gray-500' : 'text-gray-700 placeholder:text-gray-300'}`} />
             </div>
             <div className="relative">
-              <select value={catFilter} onChange={(e) => setCatFilter(e.target.value as CatalogCategoria | 'todas')}
+              <select value={catFilter} onChange={(e) => setCatFilter(e.target.value as AccesorioCategoria | 'todas')}
                 className={`appearance-none border rounded-xl pl-4 pr-8 py-2.5 text-sm font-medium outline-none shadow-sm cursor-pointer ${dark ? 'bg-gray-800 border-gray-600 text-gray-300' : 'bg-white border-gray-200 text-gray-600'}`}>
                 <option value="todas">Todas las categorías</option>
                 {CATEGORIAS.map((c) => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
@@ -1058,12 +1140,21 @@ export default function Inventory() {
               <CaretDown className="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
             {(['activos', 'inactivos', 'eliminados', 'todos'] as FilterStatus[]).map((s) => (
-              <button key={s} onClick={() => setStatusFilter(s)} className={filterBtnCls(statusFilter === s)}>
+              <button key={s} onClick={() => handleStatusFilterChange(s)} className={filterBtnCls(statusFilter === s)}>
                 {s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
 
+          {statusFilter === 'eliminados' ? (
+            <DeletedCatalogTable
+              items={paginatedDeletedCatalog}
+              onRestore={(p) => setConfirmRestoreCatalog(p)}
+              onHardDelete={(p) => setConfirmHardDeleteCatalog(p)}
+              dark={dark} page={accDelPage} totalItems={filteredDeletedCatalog.length}
+              onPrev={() => setAccDelPage(p => p - 1)} onNext={() => setAccDelPage(p => p + 1)}
+            />
+          ) : (
           <div className={`rounded-2xl shadow-sm border overflow-x-auto ${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
             <table className="w-full text-left text-sm min-w-[800px]">
               <thead>
@@ -1093,9 +1184,8 @@ export default function Inventory() {
                   paginatedCatalog.map((p) => {
                     const { cls, label } = statusRow(p);
                     const imgUrl    = getImageUrl(p);
-                    const isDeleted = !!p.deleted_at;
                     return (
-                      <tr key={p.id} className={`border-b transition-colors ${isDeleted ? 'opacity-50' : ''} ${dark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-50 hover:bg-[#FAFAFA]'}`}>
+                      <tr key={p.id} className={`border-b transition-colors ${dark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-50 hover:bg-[#FAFAFA]'}`}>
                         <td className="pl-4 py-3 w-12">
                           {imgUrl ? (
                             <img src={imgUrl} alt={p.nombre} className={`w-10 h-10 object-contain rounded-lg border ${dark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-100'}`} />
@@ -1116,18 +1206,11 @@ export default function Inventory() {
                           <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${cls}`}>{label}</span>
                         </td>
                         <td className="px-4 py-3">
-                          {!isDeleted ? (
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => openEdit(p)} title="Editar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}><PencilSimple className="w-4 h-4" /></button>
-                              <button onClick={() => toggleActive(p.id, !p.activo)} title={p.activo ? 'Desactivar' : 'Activar'} className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}>{p.activo ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-                              <button onClick={() => setConfirmDelete(p)} title="Eliminar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}><Trash className="w-4 h-4" /></button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => setConfirmRestoreCatalog(p)} title="Recuperar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-emerald-900/30 hover:text-emerald-400' : 'hover:bg-emerald-50 hover:text-emerald-600'}`}><ArrowCounterClockwise className="w-4 h-4" /></button>
-                              <button onClick={() => setConfirmHardDeleteCatalog(p)} title="Eliminar definitivamente" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}><Trash className="w-4 h-4" /></button>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => openEdit(p)} title="Editar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}><PencilSimple className="w-4 h-4" /></button>
+                            <button onClick={() => toggleActive(p.id, !p.activo)} title={p.activo ? 'Desactivar' : 'Activar'} className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-gray-700 hover:text-gray-200' : 'hover:bg-gray-100 hover:text-gray-700'}`}>{p.activo ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                            <button onClick={() => setConfirmDelete(p)} title="Eliminar" className={`p-2 rounded-xl transition-colors text-gray-400 ${dark ? 'hover:bg-red-900/30 hover:text-red-400' : 'hover:bg-red-50 hover:text-red-600'}`}><Trash className="w-4 h-4" /></button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1138,6 +1221,7 @@ export default function Inventory() {
             <Pagination page={accPage} total={filtered.length} pageSize={PAGE_SIZE} dark={dark}
               onPrev={() => setAccPage(p => p - 1)} onNext={() => setAccPage(p => p + 1)} />
           </div>
+          )}
         </>
       )}
 

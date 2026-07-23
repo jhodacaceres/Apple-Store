@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import type { Profile } from '../lib/types';
+import type { Perfil } from '../lib/types';
 
 interface AuthContextValue {
   user: User | null;
-  profile: Profile | null;
+  profile: Perfil | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthContextValue>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]       = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Perfil | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,18 +27,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const loadProfile = async (userId: string) => {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('perfiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
       if (error || !mounted) return;
       if (data) {
-        if (data.is_active === false) {
+        if (data.activo === false) {
           await supabase.auth.signOut();
           if (mounted) setProfile(null);
           return;
         }
-        if (mounted) setProfile(data as Profile);
+        if (mounted) setProfile(data as Perfil);
       }
     };
 

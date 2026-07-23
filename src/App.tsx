@@ -21,6 +21,7 @@ import Dashboard from './pages/admin/Dashboard';
 import Inventory from './pages/admin/Inventory';
 import Sales from './pages/admin/Sales';
 import Metrics from './pages/admin/Metrics';
+import Chats from './pages/admin/Chats';
 import Settings from './pages/admin/Settings';
 
 function AppContent() {
@@ -38,13 +39,13 @@ function AppContent() {
 
   useEffect(() => {
     supabase
-      .from('settings')
-      .select('contact_phone, whatsapp_message')
+      .from('configuracion')
+      .select('telefono_contacto, mensaje_whatsapp')
       .single()
       .then(({ data, error }) => {
         if (!error && data) {
-          setContactPhone(data.contact_phone);
-          setWhatsappMessage(data.whatsapp_message);
+          setContactPhone(data.telefono_contacto);
+          setWhatsappMessage(data.mensaje_whatsapp);
         }
       });
   }, []);
@@ -78,6 +79,7 @@ function AppContent() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="sales" element={<Sales />} />
             <Route path="metrics" element={<Metrics />} />
+            <Route path="chats" element={<Chats />} />
             <Route path="settings" element={
               <Settings
                 contactPhone={contactPhone}

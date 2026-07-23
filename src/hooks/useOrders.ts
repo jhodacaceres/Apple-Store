@@ -1,37 +1,36 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Order } from '../lib/types';
+import type { Venta } from '../lib/types';
 
 type OrderInput = {
-  customer_name: string;
-  customer_phone?: string;
-  product_id?: string;
-  catalog_product_id?: string;
-  total_price: number;
-  status?: 'pending' | 'completed' | 'cancelled';
-  notes?: string;
+  cliente_nombre: string;
+  cliente_telefono?: string;
+  equipo_id?: string;
+  accesorio_id?: string;
+  precio_total: number;
+  estado?: 'pendiente' | 'completada' | 'cancelada';
+  notas?: string;
 };
 
-type OrderUpdate = Partial<Pick<OrderInput, 'customer_name' | 'customer_phone' | 'total_price' | 'status' | 'notes'>>;
+type OrderUpdate = Partial<Pick<OrderInput, 'cliente_nombre' | 'cliente_telefono' | 'precio_total' | 'estado' | 'notas'>>;
 
-// device_type se omite del join hasta que exista la columna (se agrega con mac_devices_migration.sql)
-const ORDER_SELECT = '*, products(model, color, capacity, deleted_at, device_type), catalog_products(nombre, precio, deleted_at, categoria), created_by_name';
+const ORDER_SELECT = '*, equipos(modelo, color, capacidad, tipo_dispositivo), accesorios(nombre, precio, categoria), creado_por_nombre';
 
 export function useOrders() {
   const { user, profile } = useAuth();
-  const [orders, setOrders]               = useState<Order[]>([]);
-  const [deletedOrders, setDeletedOrders] = useState<Order[]>([]);
+  const [orders, setOrders]               = useState<Venta[]>([]);
+  const [deletedOrders, setDeletedOrders] = useState<Venta[]>([]);
   const [loading, setLoading]             = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
-      .from('orders')
+      .from('ventas')
       .select(ORDER_SELECT)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
-    setOrders((data ?? []) as Order[]);
+      .is('eliminado_en', null)
+      .order('creado_en', { ascending: false });
+    setOrders((data ?? []) as Venta[]);
     setLoading(false);
   }, []);
 
@@ -39,31 +38,31 @@ export function useOrders() {
     let isMounted = true;
 
     supabase
-      .from('orders')
+      .from('ventas')
       .select(ORDER_SELECT)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
+      .is('eliminado_en', null)
+      .order('creado_en', { ascending: false })
       .then(({ data }) => {
         if (!isMounted) return;
-        setOrders((data ?? []) as Order[]);
+        setOrders((data ?? []) as Venta[]);
         setLoading(false);
       });
 
     const channel = supabase
-      .channel('orders_realtime')
+      .channel('ventas_realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
+        { event: '*', schema: 'public', table: 'ventas' },
         (payload) => {
           if (!isMounted) return;
           if (payload.eventType === 'INSERT') {
-            const inserted = payload.new as Order;
-            if (!inserted.deleted_at) {
+            const inserted = payload.new as Venta;
+            if (!inserted.eliminado_en) {
               setOrders((prev) => [inserted, ...prev]);
             }
           } else if (payload.eventType === 'UPDATE') {
-            const updated = payload.new as Order;
-            if (updated.deleted_at) {
+            const updated = payload.new as Venta;
+            if (updated.eliminado_en) {
               setOrders((prev) => prev.filter((o) => o.id !== updated.id));
             } else {
               setOrders((prev) =>
@@ -89,56 +88,56 @@ export function useOrders() {
 
   const loadDeletedOrders = useCallback(async () => {
     const { data } = await supabase
-      .from('orders')
+      .from('ventas')
       .select(ORDER_SELECT)
-      .not('deleted_at', 'is', null)
-      .order('deleted_at', { ascending: false });
-    setDeletedOrders((data ?? []) as Order[]);
+      .not('eliminado_en', 'is', null)
+      .order('eliminado_en', { ascending: false });
+    setDeletedOrders((data ?? []) as Venta[]);
   }, []);
 
   const addOrder = useCallback(async (input: OrderInput) => {
     const { data, error: err } = await supabase
-      .from('orders')
+      .from('ventas')
       .insert({
         ...input,
-        status: input.status ?? 'completed',
-        created_by: user?.id ?? null,
-        created_by_name: profile?.full_name ?? user?.email ?? null,
+        estado: input.estado ?? 'completada',
+        creado_por: user?.id ?? null,
+        creado_por_nombre: profile?.nombre_completo ?? user?.email ?? null,
       })
       .select(ORDER_SELECT)
       .single();
-    if (!err && data) setOrders((prev) => [data as Order, ...prev]);
+    if (!err && data) setOrders((prev) => [data as Venta, ...prev]);
     return err;
   }, [user, profile]);
 
   const updateOrder = useCallback(async (id: string, input: OrderUpdate) => {
     const { data, error: err } = await supabase
-      .from('orders')
+      .from('ventas')
       .update(input)
       .eq('id', id)
       .select(ORDER_SELECT)
       .single();
     if (!err && data) {
-      setOrders((prev) => prev.map((o) => (o.id === id ? (data as Order) : o)));
+      setOrders((prev) => prev.map((o) => (o.id === id ? (data as Venta) : o)));
     }
     return err;
   }, []);
 
-  const cancelOrder = useCallback(async (order: Order) => {
-    if (order.status === 'completed') {
-      if (order.product_id) {
-        await supabase.from('products').update({ status: 'available' }).eq('id', order.product_id);
-      } else if (order.catalog_product_id) {
+  const cancelOrder = useCallback(async (order: Venta) => {
+    if (order.estado === 'completada') {
+      if (order.equipo_id) {
+        await supabase.from('equipos').update({ estado: 'disponible' }).eq('id', order.equipo_id);
+      } else if (order.accesorio_id) {
         const { data: acc } = await supabase
-          .from('catalog_products').select('stock').eq('id', order.catalog_product_id).single();
+          .from('accesorios').select('stock').eq('id', order.accesorio_id).single();
         if (acc) {
-          await supabase.from('catalog_products').update({ stock: acc.stock + 1 }).eq('id', order.catalog_product_id);
+          await supabase.from('accesorios').update({ stock: acc.stock + 1 }).eq('id', order.accesorio_id);
         }
       }
     }
     const { error: err } = await supabase
-      .from('orders')
-      .update({ deleted_at: new Date().toISOString() })
+      .from('ventas')
+      .update({ eliminado_en: new Date().toISOString() })
       .eq('id', order.id);
     if (!err) {
       setOrders((prev) => prev.filter((o) => o.id !== order.id));
@@ -146,36 +145,36 @@ export function useOrders() {
     return err;
   }, []);
 
-  const restoreOrder = useCallback(async (order: Order) => {
-    if (order.status === 'completed') {
-      if (order.product_id) {
-        await supabase.from('products').update({ status: 'sold' }).eq('id', order.product_id);
-      } else if (order.catalog_product_id) {
+  const restoreOrder = useCallback(async (order: Venta) => {
+    if (order.estado === 'completada') {
+      if (order.equipo_id) {
+        await supabase.from('equipos').update({ estado: 'vendido' }).eq('id', order.equipo_id);
+      } else if (order.accesorio_id) {
         const { data: acc } = await supabase
-          .from('catalog_products').select('stock').eq('id', order.catalog_product_id).single();
+          .from('accesorios').select('stock').eq('id', order.accesorio_id).single();
         if (acc) {
-          await supabase.from('catalog_products')
+          await supabase.from('accesorios')
             .update({ stock: Math.max(0, acc.stock - 1) })
-            .eq('id', order.catalog_product_id);
+            .eq('id', order.accesorio_id);
         }
       }
     }
     const { data, error: err } = await supabase
-      .from('orders')
-      .update({ deleted_at: null })
+      .from('ventas')
+      .update({ eliminado_en: null })
       .eq('id', order.id)
       .select(ORDER_SELECT)
       .single();
     if (!err && data) {
       setDeletedOrders((prev) => prev.filter((o) => o.id !== order.id));
-      setOrders((prev) => [data as Order, ...prev]);
+      setOrders((prev) => [data as Venta, ...prev]);
     }
     return err;
   }, []);
 
   const hardDeleteOrder = useCallback(async (id: string) => {
     const { error: err } = await supabase
-      .from('orders')
+      .from('ventas')
       .delete()
       .eq('id', id);
     if (!err) {

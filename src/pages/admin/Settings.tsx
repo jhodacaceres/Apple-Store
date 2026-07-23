@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FloppyDisk, Phone, Moon, Sun, Info, BookOpen, CheckCircle,
-  Users, Plus, X, Trash, ArrowCounterClockwise, Shield, ShieldSlash, Key, SignOut,
+  Users, Plus, X, Trash, ArrowCounterClockwise, Shield, ShieldSlash, Key, SignOut, Robot,
 } from '@phosphor-icons/react';
 import { useSettings } from '../../hooks/useSettings';
 import { useUsers } from '../../hooks/useUsers';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdminTheme } from '../../contexts/AdminThemeContext';
-import type { Profile } from '../../lib/types';
+import type { Perfil } from '../../lib/types';
 
 interface SettingsProps {
   contactPhone: string;
@@ -91,7 +91,7 @@ function CreateUserModal({
 function UserRow({
   u, currentUserId, onSoftDelete, onRestore, onHardDelete, onToggleAdmin, onResetPassword,
 }: {
-  u: Profile;
+  u: Perfil;
   currentUserId: string;
   onSoftDelete: (id: string) => void;
   onRestore: (id: string) => void;
@@ -100,8 +100,8 @@ function UserRow({
   onResetPassword: (email: string) => void;
 }) {
   const isSelf     = u.id === currentUserId;
-  const isInactive = !u.is_active;
-  const initials   = (u.full_name ?? u.email ?? u.id).slice(0, 2).toUpperCase();
+  const isInactive = !u.activo;
+  const initials   = (u.nombre_completo ?? u.correo ?? u.id).slice(0, 2).toUpperCase();
 
   return (
     <div className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
@@ -117,8 +117,8 @@ function UserRow({
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="font-semibold text-sm text-[#0A0A0A] truncate">{u.full_name ?? '—'}</p>
-          {u.role === 'admin' && (
+          <p className="font-semibold text-sm text-[#0A0A0A] truncate">{u.nombre_completo ?? '—'}</p>
+          {u.rol === 'admin' && (
             <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Admin</span>
           )}
           {isInactive && (
@@ -128,23 +128,23 @@ function UserRow({
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-500">Tú</span>
           )}
         </div>
-        <p className="text-xs text-gray-400 truncate">{u.email}</p>
+        <p className="text-xs text-gray-400 truncate">{u.correo}</p>
       </div>
 
       {/* Acciones */}
       <div className="flex items-center gap-1 flex-shrink-0">
         {/* Enviar reset de contraseña */}
-        <button onClick={() => u.email && onResetPassword(u.email)} title="Enviar reset de contraseña"
+        <button onClick={() => u.correo && onResetPassword(u.correo)} title="Enviar reset de contraseña"
           className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-blue-500">
           <Key className="w-4 h-4" />
         </button>
 
         {/* Promover/Degradar admin — no se puede degradar a sí mismo */}
         {!isSelf && (
-          <button onClick={() => onToggleAdmin(u.id, u.role !== 'admin')}
-            title={u.role === 'admin' ? 'Quitar permisos de admin' : 'Hacer admin'}
+          <button onClick={() => onToggleAdmin(u.id, u.rol !== 'admin')}
+            title={u.rol === 'admin' ? 'Quitar permisos de admin' : 'Hacer admin'}
             className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400 hover:text-amber-500">
-            {u.role === 'admin' ? <ShieldSlash className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+            {u.rol === 'admin' ? <ShieldSlash className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
           </button>
         )}
 
@@ -177,7 +177,7 @@ export default function Settings({
   contactPhone, setContactPhone,
   whatsappMessage, setWhatsappMessage,
 }: SettingsProps) {
-  const { settings, saveSettings } = useSettings();
+  const { settings, saveSettings, saveChatbotSettings } = useSettings();
   const { user, profile, signOut } = useAuth();
   const { isAdminDarkMode, setIsAdminDarkMode } = useAdminTheme();
   const navigate = useNavigate();
@@ -187,15 +187,29 @@ export default function Settings({
   const [message, setMessage]     = useState(whatsappMessage);
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
+
+  const [waPhoneId, setWaPhoneId]         = useState('');
+  const [iaActivaGlobal, setIaActivaGlobal] = useState(true);
+  const [iaModelo, setIaModelo]           = useState('deepseek-chat');
+  const [iaPrompt, setIaPrompt]           = useState('');
+  const [savingBot, setSavingBot]         = useState(false);
+  const [savedBot, setSavedBot]           = useState(false);
   const [tab, setTab]             = useState<SettingsTab>('general');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [confirmHardDelete, setConfirmHardDelete] = useState<Profile | null>(null);
+  const [confirmHardDelete, setConfirmHardDelete] = useState<Perfil | null>(null);
   const [confirmResetEmail, setConfirmResetEmail] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState('');
   const [actionMsg, setActionMsg] = useState('');
 
   useEffect(() => {
-    if (settings) { setPhone(settings.contact_phone); setMessage(settings.whatsapp_message); }
+    if (settings) {
+      setPhone(settings.telefono_contacto);
+      setMessage(settings.mensaje_whatsapp);
+      setWaPhoneId(settings.wa_phone_number_id ?? '');
+      setIaActivaGlobal(settings.ia_activa_global);
+      setIaModelo(settings.ia_modelo);
+      setIaPrompt(settings.ia_prompt_sistema);
+    }
   }, [settings]);
 
   useEffect(() => {
@@ -212,6 +226,22 @@ export default function Settings({
       setWhatsappMessage(message);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    }
+  };
+
+  const handleSaveBot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingBot(true);
+    const err = await saveChatbotSettings({
+      wa_phone_number_id: waPhoneId || null,
+      ia_activa_global: iaActivaGlobal,
+      ia_modelo: iaModelo,
+      ia_prompt_sistema: iaPrompt,
+    });
+    setSavingBot(false);
+    if (!err) {
+      setSavedBot(true);
+      setTimeout(() => setSavedBot(false), 3000);
     }
   };
 
@@ -242,7 +272,7 @@ export default function Settings({
     ? 'bg-gray-700 border-gray-600 text-white focus:border-white/50'
     : 'bg-gray-50 border-gray-200 text-gray-900 focus:bg-white focus:border-[#0A0A0A] focus:ring-2 focus:ring-black/5';
 
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = profile?.rol === 'admin';
 
   return (
     <div className={`space-y-6 max-w-4xl ${isAdminDarkMode ? 'text-white' : 'text-[#1C1C1E]'}`}>
@@ -388,10 +418,10 @@ export default function Settings({
                 <span className="flex items-center gap-2 text-sm text-emerald-600 font-semibold">
                   <CheckCircle className="w-4 h-4" /> Configuración guardada
                 </span>
-              ) : settings?.updated_at ? (
+              ) : settings?.actualizado_en ? (
                 <span className="text-xs text-gray-400">
                   Última actualización:{' '}
-                  {new Date(settings.updated_at).toLocaleDateString('es-BO', {
+                  {new Date(settings.actualizado_en).toLocaleDateString('es-BO', {
                     day: '2-digit', month: 'short', year: 'numeric',
                   })}
                 </span>
@@ -402,6 +432,68 @@ export default function Settings({
                 }`}>
                 {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FloppyDisk className="w-4 h-4" />}
                 {saving ? 'Guardando…' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {/* ── Chatbot de WhatsApp / IA (solo admin) ── */}
+      {tab === 'general' && isAdmin && (
+        <form onSubmit={handleSaveBot}
+          className={`rounded-2xl border shadow-sm overflow-hidden ${isAdminDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+          <div className="p-6 sm:p-8">
+            <h3 className="text-base font-bold flex items-center gap-2 mb-1">
+              <Robot className="w-4 h-4" />Chatbot de WhatsApp (IA)
+            </h3>
+            <p className="text-xs text-gray-400 mb-4">
+              El Access Token, App Secret y Verify Token de Meta, y la API key de DeepSeek se configuran como
+              secrets de Edge Functions (nunca aquí). Esta sección solo guarda ajustes no sensibles.
+            </p>
+
+            <div className={`flex items-center justify-between p-4 rounded-xl border mb-4 ${isAdminDarkMode ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-100'}`}>
+              <div>
+                <p className="font-semibold text-sm">IA activa globalmente</p>
+                <p className="text-xs mt-0.5 text-gray-400">Interruptor maestro: si está apagado, ninguna conversación recibe respuesta automática.</p>
+              </div>
+              <button type="button" onClick={() => setIaActivaGlobal((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 flex-shrink-0 ${iaActivaGlobal ? 'bg-emerald-500' : isAdminDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${iaActivaGlobal ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1.5 text-gray-400">Phone Number ID (WhatsApp Cloud API)</label>
+                <input type="text" value={waPhoneId} onChange={(e) => setWaPhoneId(e.target.value)}
+                  placeholder="123456789012345"
+                  className={`w-full border rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium ${inputClass}`} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1.5 text-gray-400">Modelo de IA (DeepSeek)</label>
+                <input type="text" value={iaModelo} onChange={(e) => setIaModelo(e.target.value)}
+                  placeholder="deepseek-chat"
+                  className={`w-full border rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium ${inputClass}`} />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1.5 text-gray-400">Prompt de sistema</label>
+                <textarea value={iaPrompt} onChange={(e) => setIaPrompt(e.target.value)} rows={5}
+                  className={`w-full border rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium resize-none ${inputClass}`} />
+              </div>
+            </div>
+
+            <div className="pt-6 flex items-center justify-between">
+              {savedBot ? (
+                <span className="flex items-center gap-2 text-sm text-emerald-600 font-semibold">
+                  <CheckCircle className="w-4 h-4" /> Configuración del chatbot guardada
+                </span>
+              ) : <span />}
+              <button type="submit" disabled={savingBot}
+                className={`px-6 py-3 rounded-xl flex items-center gap-2 text-sm font-bold transition-all duration-200 shadow-sm active:scale-[0.98] disabled:opacity-60 ${
+                  isAdminDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-white' : 'bg-[#0A0A0A] text-white hover:bg-gray-800'
+                }`}>
+                {savingBot ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <FloppyDisk className="w-4 h-4" />}
+                {savingBot ? 'Guardando…' : 'Guardar Chatbot'}
               </button>
             </div>
           </div>
@@ -426,7 +518,7 @@ export default function Settings({
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center">
                 <h3 className="font-black text-lg mb-2 text-[#0A0A0A]">Eliminar definitivamente</h3>
-                <p className="text-sm text-gray-400 mb-2">{confirmHardDelete.email}</p>
+                <p className="text-sm text-gray-400 mb-2">{confirmHardDelete.correo}</p>
                 <p className="text-xs text-red-400 mb-6">Esta acción es irreversible. El usuario perderá acceso permanentemente.</p>
                 <div className="flex gap-3">
                   <button onClick={() => setConfirmHardDelete(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-100">Cancelar</button>

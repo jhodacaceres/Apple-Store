@@ -1,54 +1,62 @@
-export interface Product {
+export interface Equipo {
   id: string;
-  model: string;
+  modelo: string;
   color: string | null;
-  capacity: string | null;
-  price: number;
+  capacidad: string | null;
+  precio: number;
   imei: string | null;
-  image_url: string | null;
-  image_path: string | null;
+  imagen_url: string | null;
+  imagen_path: string | null;
   visible_catalogo: boolean;
-  status: 'available' | 'sold' | 'reserved';
-  device_type: 'phone' | 'mac';
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
+  estado: 'disponible' | 'vendido' | 'reservado';
+  tipo_dispositivo: 'telefono' | 'mac';
+  creado_en: string;
+  actualizado_en: string;
 }
 
-export interface Order {
+export interface EquipoEliminado extends Equipo {
+  eliminado_en: string;
+  eliminado_por: string | null;
+}
+
+export interface Venta {
   id: string;
-  order_number: string;
-  customer_name: string;
-  customer_phone: string | null;
-  product_id: string | null;
-  catalog_product_id: string | null;
-  total_price: number;
-  status: 'pending' | 'completed' | 'cancelled';
-  notes: string | null;
-  created_at: string;
-  deleted_at: string | null;
-  created_by?: string | null;
-  created_by_name?: string | null;
-  products?: (Pick<Product, 'model' | 'color' | 'capacity' | 'deleted_at'> & { device_type?: 'phone' | 'mac' }) | null;
-  catalog_products?: Pick<CatalogProduct, 'nombre' | 'precio' | 'deleted_at' | 'categoria'> | null;
+  numero_venta: string;
+  cliente_nombre: string;
+  cliente_telefono: string | null;
+  equipo_id: string | null;
+  accesorio_id: string | null;
+  precio_total: number;
+  estado: 'pendiente' | 'completada' | 'cancelada';
+  notas: string | null;
+  creado_en: string;
+  eliminado_en: string | null;
+  creado_por?: string | null;
+  creado_por_nombre?: string | null;
+  equipos?: (Pick<Equipo, 'modelo' | 'color' | 'capacidad'> & { tipo_dispositivo?: 'telefono' | 'mac' }) | null;
+  accesorios?: Pick<Accesorio, 'nombre' | 'precio' | 'categoria'> | null;
 }
 
-export interface AppSettings {
+export interface Configuracion {
   id: number;
-  contact_phone: string;
-  whatsapp_message: string;
-  updated_at: string;
-  updated_by: string | null;
-  updated_by_email: string | null;
+  telefono_contacto: string;
+  mensaje_whatsapp: string;
+  wa_phone_number_id: string | null;
+  ia_activa_global: boolean;
+  ia_modelo: string;
+  ia_prompt_sistema: string;
+  actualizado_en: string;
+  actualizado_por: string | null;
+  actualizado_por_correo: string | null;
 }
 
-export type CatalogCategoria = 'fundas' | 'cargadores' | 'cables' | 'airpods' | 'accesorios';
+export type AccesorioCategoria = 'fundas' | 'cargadores' | 'cables' | 'airpods' | 'accesorios';
 
-export interface CatalogProduct {
+export interface Accesorio {
   id: string;
   sku: string;
   nombre: string;
-  categoria: CatalogCategoria;
+  categoria: AccesorioCategoria;
   descripcion: string | null;
   precio: number;
   stock: number;
@@ -56,19 +64,23 @@ export interface CatalogProduct {
   imagen_path: string | null;
   slug: string;
   activo: boolean;
-  deleted_at: string | null;
-  updated_at: string;
+  actualizado_en: string;
 }
 
-export interface Profile {
+export interface AccesorioEliminado extends Accesorio {
+  eliminado_en: string;
+  eliminado_por: string | null;
+}
+
+export interface Perfil {
   id: string;
-  email: string | null;
-  full_name: string | null;
-  role: 'admin' | 'employee';
-  is_active: boolean;
-  deleted_at: string | null;
-  created_at: string;
-  updated_at: string;
+  correo: string | null;
+  nombre_completo: string | null;
+  rol: 'admin' | 'empleado';
+  activo: boolean;
+  eliminado_en: string | null;
+  creado_en: string;
+  actualizado_en: string;
 }
 
 export interface AnalyticsSummary {
@@ -105,4 +117,31 @@ export interface OrderForm {
   direccion: string;
   comentarios: string;
   cantidad: number;
+}
+
+export type RemitenteMensaje = 'cliente' | 'ia' | 'humano' | 'sistema';
+export type EstadoEntregaMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
+
+export interface Conversacion {
+  id: string;
+  telefono_cliente: string;
+  nombre_cliente: string | null;
+  ia_activa: boolean;
+  requiere_humano: boolean;
+  estado: 'abierta' | 'cerrada';
+  ultimo_mensaje_en: string | null;
+  no_leidos: number;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface Mensaje {
+  id: string;
+  conversacion_id: string;
+  remitente: RemitenteMensaje;
+  contenido: string;
+  wa_message_id: string | null;
+  estado_entrega: EstadoEntregaMensaje | null;
+  metadata: Record<string, unknown>;
+  creado_en: string;
 }

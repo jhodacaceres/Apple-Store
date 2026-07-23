@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { SquaresFour, Package, ShoppingCart, TrendUp, Gear } from '@phosphor-icons/react';
+import { SquaresFour, Package, ShoppingCart, TrendUp, ChatCircle, Gear } from '@phosphor-icons/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdminTheme } from '../../contexts/AdminThemeContext';
+import { useConversaciones } from '../../hooks/useConversaciones';
 
 interface AdminLayoutProps {
   isSidebarOpen: boolean;
@@ -22,10 +23,12 @@ function getInitials(name: string | null | undefined, email: string | null | und
 export default function AdminLayout({ isSidebarOpen, setIsSidebarOpen }: AdminLayoutProps) {
   const { user, profile } = useAuth();
   const { isAdminDarkMode } = useAdminTheme();
+  const { conversaciones } = useConversaciones();
+  const alertCount = conversaciones.filter((c) => c.requiere_humano).length;
 
-  const displayName  = profile?.full_name?.trim() || user?.email?.split('@')[0] || 'Usuario';
+  const displayName  = profile?.nombre_completo?.trim() || user?.email?.split('@')[0] || 'Usuario';
   const displayEmail = user?.email || '';
-  const initials     = getInitials(profile?.full_name, user?.email);
+  const initials     = getInitials(profile?.nombre_completo, user?.email);
 
   useEffect(() => {
     const prevBg     = document.body.style.backgroundColor;
@@ -93,6 +96,14 @@ export default function AdminLayout({ isSidebarOpen, setIsSidebarOpen }: AdminLa
             </NavLink>
             <NavLink to="/admin/metrics" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
               <TrendUp className="w-4 h-4 flex-shrink-0" /> Métricas
+            </NavLink>
+            <NavLink to="/admin/chats" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
+              <ChatCircle className="w-4 h-4 flex-shrink-0" /> Chats
+              {alertCount > 0 && (
+                <span className="ml-auto text-[10px] font-black bg-red-500 text-white rounded-full px-1.5 py-0.5">
+                  {alertCount}
+                </span>
+              )}
             </NavLink>
             <NavLink to="/admin/settings" className={navItemStyle} onClick={() => setIsSidebarOpen(false)}>
               <Gear className="w-4 h-4 flex-shrink-0" /> Configuración

@@ -3,7 +3,7 @@ import { TrendUp, DeviceMobile, Package, CurrencyDollar, Calendar, ArrowCounterC
 import { useAdminTheme } from '../../contexts/AdminThemeContext';
 import { useProducts } from '../../hooks/useProducts';
 import { useOrders } from '../../hooks/useOrders';
-import type { Order } from '../../lib/types';
+import type { Venta } from '../../lib/types';
 
 type MetricColor = 'emerald' | 'blue' | 'violet' | 'amber';
 
@@ -42,7 +42,7 @@ const chartBars = [40, 65, 50, 80, 45, 90, 70, 55, 85, 60, 75, 95];
 
 export default function Dashboard() {
   const { isAdminDarkMode } = useAdminTheme();
-  const { products, loading: loadingP } = useProducts('phone');
+  const { products, loading: loadingP } = useProducts('telefono');
   const { products: macs, loading: loadingM } = useProducts('mac');
   const { orders, loading: loadingO } = useOrders();
 
@@ -59,26 +59,23 @@ export default function Dashboard() {
     const fromDate = new Date(dateRange.from + 'T00:00:00');
     const toDate   = new Date(dateRange.to   + 'T23:59:59');
 
-    const isInRange = (o: Order) => {
-      const d = new Date(o.created_at);
+    const isInRange = (o: Venta) => {
+      const d = new Date(o.creado_en);
       return d >= fromDate && d <= toDate;
     };
 
-    const matchesCategory = (o: Order): boolean => {
+    const matchesCategory = (o: Venta): boolean => {
       if (category === 'todos') return true;
-      if (category === 'celulares') return !!o.product_id && o.products?.device_type === 'phone';
-      if (category === 'macs')      return !!o.product_id && o.products?.device_type === 'mac';
-      return !!o.catalog_product_id && o.catalog_products?.categoria === category;
+      if (category === 'celulares') return !!o.equipo_id && o.equipos?.tipo_dispositivo === 'telefono';
+      if (category === 'macs')      return !!o.equipo_id && o.equipos?.tipo_dispositivo === 'mac';
+      return !!o.accesorio_id && o.accesorios?.categoria === category;
     };
 
-    const isProductAlive = (o: Order) =>
-      !(o.products?.deleted_at) && !(o.catalog_products?.deleted_at);
-
     const completed = orders.filter(
-      (o) => o.status === 'completed' && isInRange(o) && matchesCategory(o) && isProductAlive(o)
+      (o) => o.estado === 'completada' && isInRange(o) && matchesCategory(o)
     );
 
-    const totalIncome = completed.reduce((sum, o) => sum + Number(o.total_price), 0);
+    const totalIncome = completed.reduce((sum, o) => sum + Number(o.precio_total), 0);
     const sold = completed.length;
 
     // Comparativa vs período anterior de igual duración
@@ -89,13 +86,12 @@ export default function Dashboard() {
     const prevTo   = new Date(fromDate.getTime() - 1);
     const prevFrom = new Date(prevTo.getTime() - rangeDays * 86400000);
     const prevCompleted = orders.filter((o) => {
-      const d = new Date(o.created_at);
+      const d = new Date(o.creado_en);
       return (
-        o.status === 'completed' &&
+        o.estado === 'completada' &&
         d >= prevFrom &&
         d <= prevTo &&
-        matchesCategory(o) &&
-        isProductAlive(o)
+        matchesCategory(o)
       );
     });
     const prevCount = prevCompleted.length;
@@ -104,10 +100,10 @@ export default function Dashboard() {
     // Disponibles según categoría
     let available = 0;
     if (category === 'todos' || category === 'celulares') {
-      available += products.filter((p) => p.status === 'available').length;
+      available += products.filter((p) => p.estado === 'disponible').length;
     }
     if (category === 'todos' || category === 'macs') {
-      available += macs.filter((p) => p.status === 'available').length;
+      available += macs.filter((p) => p.estado === 'disponible').length;
     }
 
     return [
@@ -155,7 +151,7 @@ export default function Dashboard() {
     const toDate   = new Date(dateRange.to   + 'T23:59:59');
     return orders
       .filter((o) => {
-        const d = new Date(o.created_at);
+        const d = new Date(o.creado_en);
         return d >= fromDate && d <= toDate;
       })
       .slice(0, 5);
@@ -270,18 +266,18 @@ export default function Dashboard() {
         ) : (
           <div className={`divide-y ${dark ? 'divide-gray-700' : 'divide-gray-50'}`}>
             {recentOrders.map((order) => {
-              const productName = order.products
-                ? [order.products.model, order.products.color, order.products.capacity].filter(Boolean).join(' ')
-                : order.catalog_products?.nombre ?? '—';
+              const productName = order.equipos
+                ? [order.equipos.modelo, order.equipos.color, order.equipos.capacidad].filter(Boolean).join(' ')
+                : order.accesorios?.nombre ?? '—';
               return (
                 <div key={order.id} className="px-6 py-4 flex items-center justify-between">
                   <div>
-                    <p className={`font-semibold text-sm ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{order.customer_name}</p>
+                    <p className={`font-semibold text-sm ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{order.cliente_nombre}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{productName}</p>
                   </div>
                   <div className="text-right">
-                    <p className={`font-black text-sm ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>${Number(order.total_price).toLocaleString()}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{new Date(order.created_at).toLocaleDateString('es-BO')}</p>
+                    <p className={`font-black text-sm ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>${Number(order.precio_total).toLocaleString()}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{new Date(order.creado_en).toLocaleDateString('es-BO')}</p>
                   </div>
                 </div>
               );

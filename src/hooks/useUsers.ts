@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Profile } from '../lib/types';
+import type { Perfil } from '../lib/types';
 
 
 export function useUsers() {
-  const [users, setUsers]   = useState<Profile[]>([]);
+  const [users, setUsers]   = useState<Perfil[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState<string | null>(null);
 
@@ -12,29 +12,29 @@ export function useUsers() {
     setLoading(true);
     setError(null);
     const { data, error: err } = await supabase
-      .from('profiles')
+      .from('perfiles')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('creado_en', { ascending: true });
     if (err) setError(err.message);
-    else setUsers((data ?? []) as Profile[]);
+    else setUsers((data ?? []) as Perfil[]);
     setLoading(false);
   }, []);
 
   const softDeleteUser = useCallback(async (id: string) => {
     const { error: err } = await supabase
-      .from('profiles')
-      .update({ is_active: false, deleted_at: new Date().toISOString() })
+      .from('perfiles')
+      .update({ activo: false, eliminado_en: new Date().toISOString() })
       .eq('id', id);
-    if (!err) setUsers(prev => prev.map(u => u.id === id ? { ...u, is_active: false, deleted_at: new Date().toISOString() } : u));
+    if (!err) setUsers(prev => prev.map(u => u.id === id ? { ...u, activo: false, eliminado_en: new Date().toISOString() } : u));
     return err;
   }, []);
 
   const restoreUser = useCallback(async (id: string) => {
     const { error: err } = await supabase
-      .from('profiles')
-      .update({ is_active: true, deleted_at: null })
+      .from('perfiles')
+      .update({ activo: true, eliminado_en: null })
       .eq('id', id);
-    if (!err) setUsers(prev => prev.map(u => u.id === id ? { ...u, is_active: true, deleted_at: null } : u));
+    if (!err) setUsers(prev => prev.map(u => u.id === id ? { ...u, activo: true, eliminado_en: null } : u));
     return err;
   }, []);
 
@@ -78,12 +78,12 @@ export function useUsers() {
   }, []);
 
   const setAdminRole = useCallback(async (id: string, isAdmin: boolean) => {
-    const newRole: Profile['role'] = isAdmin ? 'admin' : 'employee';
+    const newRole: Perfil['rol'] = isAdmin ? 'admin' : 'empleado';
     const { error: err } = await supabase
-      .from('profiles')
-      .update({ role: newRole })
+      .from('perfiles')
+      .update({ rol: newRole })
       .eq('id', id);
-    if (!err) setUsers(prev => prev.map(u => u.id === id ? { ...u, role: newRole } : u));
+    if (!err) setUsers(prev => prev.map(u => u.id === id ? { ...u, rol: newRole } : u));
     return err;
   }, []);
 

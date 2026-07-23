@@ -13,7 +13,7 @@ import { useProducts } from '../../hooks/useProducts';
 import { useCatalogProducts } from '../../hooks/useCatalogProducts';
 import DateRangeModal from '../../components/DateRangeModal';
 import SearchableSelect from '../../components/SearchableSelect';
-import type { Order } from '../../lib/types';
+import type { Venta } from '../../lib/types';
 
 // ──────────────────────────────────────────────────────────
 // Caché y paginación
@@ -24,7 +24,7 @@ const CK_ORDERS = 'az_orders_v1';
 // ──────────────────────────────────────────────────────────
 // Tipos
 // ──────────────────────────────────────────────────────────
-type ProductType = 'phone' | 'mac' | 'accessory';
+type ProductType = 'telefono' | 'mac' | 'accessory';
 
 type NewSaleForm = {
   product_type: ProductType;
@@ -33,53 +33,53 @@ type NewSaleForm = {
   product_id: string;
   catalog_product_id: string;
   total_price: string;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pendiente' | 'completada' | 'cancelada';
 };
 
 type EditForm = {
   customer_name: string;
   customer_phone: string;
   total_price: string;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pendiente' | 'completada' | 'cancelada';
   notes: string;
 };
 
 const EMPTY_FORM: NewSaleForm = {
-  product_type: 'phone',
+  product_type: 'telefono',
   customer_name: '',
   customer_phone: '',
   product_id: '',
   catalog_product_id: '',
   total_price: '',
-  status: 'completed',
+  status: 'completada',
 };
 
-const statusStyle = (s: Order['status']) => {
-  if (s === 'completed') return 'bg-emerald-100 text-emerald-700';
-  if (s === 'cancelled')  return 'bg-red-100 text-red-700';
+const statusStyle = (s: Venta['estado']) => {
+  if (s === 'completada') return 'bg-emerald-100 text-emerald-700';
+  if (s === 'cancelada')  return 'bg-red-100 text-red-700';
   return 'bg-amber-100 text-amber-700';
 };
-const statusLabel = (s: Order['status']) =>
-  ({ completed: 'Completado', cancelled: 'Cancelado', pending: 'Pendiente' })[s];
+const statusLabel = (s: Venta['estado']) =>
+  ({ completada: 'Completado', cancelada: 'Cancelado', pendiente: 'Pendiente' })[s];
 
-function getProductName(o: Order): string {
-  if (o.products) return [o.products.model, o.products.capacity].filter(Boolean).join(' ');
-  if (o.catalog_products) return o.catalog_products.nombre;
+function getProductName(o: Venta): string {
+  if (o.equipos) return [o.equipos.modelo, o.equipos.capacidad].filter(Boolean).join(' ');
+  if (o.accesorios) return o.accesorios.nombre;
   return '—';
 }
 
-function getProductType(o: Order): string {
-  if (!o.product_id && !o.catalog_product_id) return '—';
-  if (o.catalog_product_id) return 'Accesorio';
-  if (o.products?.device_type === 'mac') return 'Mac';
+function getProductType(o: Venta): string {
+  if (!o.equipo_id && !o.accesorio_id) return '—';
+  if (o.accesorio_id) return 'Accesorio';
+  if (o.equipos?.tipo_dispositivo === 'mac') return 'Mac';
   return 'Celular';
 }
 
 type SalesTab = 'active' | 'deleted';
 
 type RestoreCheck =
-  | { type: 'conflict'; order: Order; conflictOrder: Order }
-  | { type: 'blocked';  order: Order; reason: string }
+  | { type: 'conflict'; order: Venta; conflictOrder: Venta }
+  | { type: 'blocked';  order: Venta; reason: string }
   | null;
 
 // ──────────────────────────────────────────────────────────
@@ -93,12 +93,12 @@ export default function Sales() {
     addOrder, updateOrder, cancelOrder,
     restoreOrder, hardDeleteOrder, loadDeletedOrders, reload,
   } = useOrders();
-  const { products: phones, reload: reloadPhones } = useProducts('phone');
+  const { products: phones, reload: reloadPhones } = useProducts('telefono');
   const { products: macs,   reload: reloadMacs   } = useProducts('mac');
   const { products: catalogItems } = useCatalogProducts();
 
   // ── Caché inicial ──
-  const [cachedOrders] = useState<Order[]>(() => readCache(CK_ORDERS));
+  const [cachedOrders] = useState<Venta[]>(() => readCache(CK_ORDERS));
   const ordersData = (loading && orders.length === 0) ? cachedOrders : orders;
 
   // Escribir caché cuando los datos cambian
@@ -108,7 +108,7 @@ export default function Sales() {
   useEffect(() => {
     const ch = supabase
       .channel('sales_orders_rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { reload(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => { reload(); })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [reload]);
@@ -116,12 +116,12 @@ export default function Sales() {
   // ── UI state ──
   const [tab, setTab]                   = useState<SalesTab>('active');
   const [modalOpen, setModalOpen]       = useState(false);
-  const [detailOrder, setDetailOrder]   = useState<Order | null>(null);
-  const [editOrder, setEditOrder]       = useState<Order | null>(null);
-  const [deleteOrder, setDeleteOrder]   = useState<Order | null>(null);
-  const [hardDeleteTarget, setHardDeleteTarget] = useState<Order | null>(null);
+  const [detailOrder, setDetailOrder]   = useState<Venta | null>(null);
+  const [editOrder, setEditOrder]       = useState<Venta | null>(null);
+  const [deleteOrder, setDeleteOrder]   = useState<Venta | null>(null);
+  const [hardDeleteTarget, setHardDeleteTarget] = useState<Venta | null>(null);
   const [form, setForm]                 = useState<NewSaleForm>(EMPTY_FORM);
-  const [editForm, setEditForm]         = useState<EditForm>({ customer_name: '', customer_phone: '', total_price: '', status: 'completed', notes: '' });
+  const [editForm, setEditForm]         = useState<EditForm>({ customer_name: '', customer_phone: '', total_price: '', status: 'completada', notes: '' });
   const [saving, setSaving]             = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [restoreCheck, setRestoreCheck] = useState<RestoreCheck>(null);
@@ -147,9 +147,9 @@ export default function Sales() {
   const trClass   = `border-b transition-colors ${dark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-50 hover:bg-[#FAFAFA]'}`;
   const tdClass   = `px-5 py-4`;
 
-  const availablePhones = useMemo(() => phones.filter((p) => p.status === 'available'), [phones]);
-  const availableMacs   = useMemo(() => macs.filter((p) => p.status === 'available'), [macs]);
-  const availableAcc    = useMemo(() => catalogItems.filter((p) => !p.deleted_at && p.activo && p.stock > 0), [catalogItems]);
+  const availablePhones = useMemo(() => phones.filter((p) => p.estado === 'disponible'), [phones]);
+  const availableMacs   = useMemo(() => macs.filter((p) => p.estado === 'disponible'), [macs]);
+  const availableAcc    = useMemo(() => catalogItems.filter((p) => p.activo && p.stock > 0), [catalogItems]);
 
   const handleChange = (field: keyof NewSaleForm, value: string) => {
     setForm((prev) => {
@@ -161,7 +161,7 @@ export default function Sales() {
       }
       if (field === 'product_id') {
         const p = [...phones, ...macs].find((pr) => pr.id === value);
-        if (p) updated.total_price = String(p.price);
+        if (p) updated.total_price = String(p.precio);
       }
       if (field === 'catalog_product_id') {
         const p = catalogItems.find((pr) => pr.id === value);
@@ -179,23 +179,23 @@ export default function Sales() {
 
     setSaving(true);
     const err = await addOrder({
-      customer_name:      form.customer_name,
-      customer_phone:     form.customer_phone || undefined,
-      product_id:         isPhone ? form.product_id : undefined,
-      catalog_product_id: !isPhone ? form.catalog_product_id : undefined,
-      total_price:        parseFloat(form.total_price),
-      status:             form.status,
+      cliente_nombre:  form.customer_name,
+      cliente_telefono: form.customer_phone || undefined,
+      equipo_id:       isPhone ? form.product_id : undefined,
+      accesorio_id:    !isPhone ? form.catalog_product_id : undefined,
+      precio_total:    parseFloat(form.total_price),
+      estado:          form.status,
     });
 
     if (!err) {
-      if (form.status === 'completed') {
+      if (form.status === 'completada') {
         if (isPhone) {
-          await supabase.from('products').update({ status: 'sold' }).eq('id', form.product_id);
+          await supabase.from('equipos').update({ estado: 'vendido' }).eq('id', form.product_id);
         } else {
           const { data: acc } = await supabase
-            .from('catalog_products').select('stock').eq('id', form.catalog_product_id).single();
+            .from('accesorios').select('stock').eq('id', form.catalog_product_id).single();
           if (acc && acc.stock > 0) {
-            await supabase.from('catalog_products').update({ stock: acc.stock - 1 }).eq('id', form.catalog_product_id);
+            await supabase.from('accesorios').update({ stock: acc.stock - 1 }).eq('id', form.catalog_product_id);
           }
         }
       }
@@ -208,20 +208,20 @@ export default function Sales() {
     setSaving(false);
   };
 
-  const openEdit = (o: Order) => {
+  const openEdit = (o: Venta) => {
     setEditOrder(o);
-    setEditForm({ customer_name: o.customer_name, customer_phone: o.customer_phone ?? '', total_price: String(o.total_price), status: o.status, notes: o.notes ?? '' });
+    setEditForm({ customer_name: o.cliente_nombre, customer_phone: o.cliente_telefono ?? '', total_price: String(o.precio_total), status: o.estado, notes: o.notas ?? '' });
   };
 
   const handleEditSave = async () => {
     if (!editOrder) return;
     setSaving(true);
     await updateOrder(editOrder.id, {
-      customer_name:  editForm.customer_name,
-      customer_phone: editForm.customer_phone || undefined,
-      total_price:    parseFloat(editForm.total_price),
-      status:         editForm.status,
-      notes:          editForm.notes || undefined,
+      cliente_nombre:  editForm.customer_name,
+      cliente_telefono: editForm.customer_phone || undefined,
+      precio_total:    parseFloat(editForm.total_price),
+      estado:          editForm.status,
+      notas:           editForm.notes || undefined,
     });
     setSaving(false);
     setEditOrder(null);
@@ -235,31 +235,31 @@ export default function Sales() {
     setDeleteOrder(null);
   };
 
-  const checkAndRestore = async (order: Order) => {
-    if (order.status !== 'completed') {
+  const checkAndRestore = async (order: Venta) => {
+    if (order.estado !== 'completada') {
       await restoreOrder(order);
       reloadPhones(); reloadMacs();
       return;
     }
 
-    if (order.product_id) {
+    if (order.equipo_id) {
       const { data: conflict } = await supabase
-        .from('orders')
-        .select('id, order_number, customer_name, customer_phone, created_at, total_price, status, deleted_at, notes, product_id, catalog_product_id')
-        .eq('product_id', order.product_id)
-        .is('deleted_at', null)
+        .from('ventas')
+        .select('id, numero_venta, cliente_nombre, cliente_telefono, creado_en, precio_total, estado, eliminado_en, notas, equipo_id, accesorio_id')
+        .eq('equipo_id', order.equipo_id)
+        .is('eliminado_en', null)
         .neq('id', order.id)
         .maybeSingle();
 
       if (conflict) {
-        setRestoreCheck({ type: 'conflict', order, conflictOrder: conflict as Order });
+        setRestoreCheck({ type: 'conflict', order, conflictOrder: conflict as Venta });
         return;
       }
-    } else if (order.catalog_product_id) {
+    } else if (order.accesorio_id) {
       const { data: acc } = await supabase
-        .from('catalog_products')
+        .from('accesorios')
         .select('stock, nombre')
-        .eq('id', order.catalog_product_id)
+        .eq('id', order.accesorio_id)
         .single();
 
       if (acc && acc.stock === 0) {
@@ -302,21 +302,21 @@ export default function Sales() {
     let data = orders;
     if (from || to) {
       data = data.filter((o) => {
-        const d = new Date(o.created_at);
+        const d = new Date(o.creado_en);
         if (from && d < from) return false;
         if (to && d > to)     return false;
         return true;
       });
     }
     const rows = data.map((o) => ({
-      'ID Pedido':   o.order_number,
-      Fecha:         new Date(o.created_at).toLocaleDateString('es-BO'),
-      Cliente:       o.customer_name,
-      Teléfono:      o.customer_phone ?? '',
+      'ID Pedido':   o.numero_venta,
+      Fecha:         new Date(o.creado_en).toLocaleDateString('es-BO'),
+      Cliente:       o.cliente_nombre,
+      Teléfono:      o.cliente_telefono ?? '',
       Producto:      getProductName(o),
       Tipo:          getProductType(o),
-      'Total (Bs)':  o.total_price,
-      Estado:        statusLabel(o.status),
+      'Total (Bs)':  o.precio_total,
+      Estado:        statusLabel(o.estado),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -358,7 +358,7 @@ export default function Sales() {
                 <label className="block text-xs font-semibold text-gray-400 mb-2">Tipo de producto *</label>
                 <div className="flex gap-2">
                   {([
-                    { value: 'phone',     label: 'Celular'   },
+                    { value: 'telefono',  label: 'Celular'   },
                     { value: 'mac',       label: 'Mac'       },
                     { value: 'accessory', label: 'Accesorio' },
                   ] as { value: ProductType; label: string }[]).map(({ value, label }) => (
@@ -377,13 +377,13 @@ export default function Sales() {
                 </div>
               </div>
 
-              {form.product_type === 'phone' && (
+              {form.product_type === 'telefono' && (
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1.5">Equipo *</label>
                   <SearchableSelect
                     options={availablePhones.map((p) => ({
                       id: p.id,
-                      label: `${p.model} ${p.color ?? ''} ${p.capacity ?? ''} — Bs ${p.price}`.replace(/\s+/g, ' ').trim(),
+                      label: `${p.modelo} ${p.color ?? ''} ${p.capacidad ?? ''} — Bs ${p.precio}`.replace(/\s+/g, ' ').trim(),
                     }))}
                     value={form.product_id}
                     onChange={(id) => handleChange('product_id', id)}
@@ -398,7 +398,7 @@ export default function Sales() {
                   <SearchableSelect
                     options={availableMacs.map((p) => ({
                       id: p.id,
-                      label: `${p.model} ${p.color ?? ''} ${p.capacity ?? ''} — Bs ${p.price}`.replace(/\s+/g, ' ').trim(),
+                      label: `${p.modelo} ${p.color ?? ''} ${p.capacidad ?? ''} — Bs ${p.precio}`.replace(/\s+/g, ' ').trim(),
                     }))}
                     value={form.product_id}
                     onChange={(id) => handleChange('product_id', id)}
@@ -435,8 +435,8 @@ export default function Sales() {
                   onChange={(e) => handleChange('status', e.target.value)}
                   className={FIELD}
                   style={{ colorScheme: dark ? 'dark' : 'light' }}>
-                  <option value="completed">Completado</option>
-                  <option value="pending">Pendiente</option>
+                  <option value="completada">Completado</option>
+                  <option value="pendiente">Pendiente</option>
                 </select>
               </div>
             </div>
@@ -466,7 +466,7 @@ export default function Sales() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className={`${modalBg} rounded-3xl shadow-2xl w-full max-w-md overflow-hidden`}>
             <div className={`flex items-center justify-between px-6 py-5 border-b ${modalHead}`}>
-              <h3 className={`font-black text-lg ${modalText}`}>Editar Venta <span className="text-gray-400 text-sm font-mono">{editOrder.order_number}</span></h3>
+              <h3 className={`font-black text-lg ${modalText}`}>Editar Venta <span className="text-gray-400 text-sm font-mono">{editOrder.numero_venta}</span></h3>
               <button onClick={() => setEditOrder(null)} className="p-2 hover:bg-gray-100/10 rounded-xl transition-colors">
                 <X className="w-4 h-4 text-gray-400" />
               </button>
@@ -496,8 +496,8 @@ export default function Sales() {
                   onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value as EditForm['status'] }))}
                   className={FIELD}
                   style={{ colorScheme: dark ? 'dark' : 'light' }}>
-                  <option value="completed">Completado</option>
-                  <option value="pending">Pendiente</option>
+                  <option value="completada">Completado</option>
+                  <option value="pendiente">Pendiente</option>
                 </select>
               </div>
               <div>
@@ -537,7 +537,7 @@ export default function Sales() {
                 </div>
                 <div>
                   <h3 className={`font-black text-base ${modalText}`}>¿Eliminar esta venta?</h3>
-                  <p className="text-gray-400 text-sm mt-1">{deleteOrder.order_number} — {deleteOrder.customer_name}</p>
+                  <p className="text-gray-400 text-sm mt-1">{deleteOrder.numero_venta} — {deleteOrder.cliente_nombre}</p>
                 </div>
               </div>
               <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
@@ -572,7 +572,7 @@ export default function Sales() {
                 </div>
                 <div>
                   <h3 className={`font-black text-base ${modalText}`}>Eliminar definitivamente</h3>
-                  <p className="text-gray-400 text-sm mt-1">{hardDeleteTarget.order_number} — {hardDeleteTarget.customer_name}</p>
+                  <p className="text-gray-400 text-sm mt-1">{hardDeleteTarget.numero_venta} — {hardDeleteTarget.cliente_nombre}</p>
                 </div>
               </div>
               <p className="text-gray-500 text-sm">Esta acción es irreversible. La venta se borrará permanentemente.</p>
@@ -596,20 +596,20 @@ export default function Sales() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className={`${modalBg} rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden`}>
             <div className={`flex items-center justify-between px-6 py-5 border-b ${modalHead}`}>
-              <h3 className={`font-black text-lg ${modalText}`}>{detailOrder.order_number}</h3>
+              <h3 className={`font-black text-lg ${modalText}`}>{detailOrder.numero_venta}</h3>
               <button onClick={() => setDetailOrder(null)} className="p-2 hover:bg-gray-100/10 rounded-xl transition-colors">
                 <X className="w-4 h-4 text-gray-400" />
               </button>
             </div>
             <div className="p-6 space-y-3 text-sm">
               {[
-                ['Cliente',  detailOrder.customer_name],
-                ['Teléfono', detailOrder.customer_phone ?? '—'],
+                ['Cliente',  detailOrder.cliente_nombre],
+                ['Teléfono', detailOrder.cliente_telefono ?? '—'],
                 ['Producto', getProductName(detailOrder)],
                 ['Tipo',     getProductType(detailOrder)],
-                ['Total',    `Bs ${Number(detailOrder.total_price).toLocaleString()}`],
-                ['Fecha',    new Date(detailOrder.created_at).toLocaleString('es-BO')],
-                ...(detailOrder.notes ? [['Notas', detailOrder.notes]] : []),
+                ['Total',    `Bs ${Number(detailOrder.precio_total).toLocaleString()}`],
+                ['Fecha',    new Date(detailOrder.creado_en).toLocaleString('es-BO')],
+                ...(detailOrder.notas ? [['Notas', detailOrder.notas]] : []),
               ].map(([label, val]) => (
                 <div key={label} className="flex justify-between items-start gap-4">
                   <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider shrink-0">{label}</span>
@@ -617,8 +617,8 @@ export default function Sales() {
                 </div>
               ))}
               <div className="pt-2">
-                <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${statusStyle(detailOrder.status)}`}>
-                  {statusLabel(detailOrder.status)}
+                <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${statusStyle(detailOrder.estado)}`}>
+                  {statusLabel(detailOrder.estado)}
                 </span>
               </div>
             </div>
@@ -653,22 +653,22 @@ export default function Sales() {
                 </div>
                 <div className={`px-4 py-3 flex items-center justify-between gap-4 ${dark ? 'bg-gray-800' : 'bg-white'}`}>
                   <span className={`font-mono text-xs font-bold px-2 py-1 rounded-lg border ${dark ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
-                    {restoreCheck.order.order_number}
+                    {restoreCheck.order.numero_venta}
                   </span>
-                  <span className={`font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{restoreCheck.order.customer_name}</span>
-                  <span className="text-gray-400 text-xs">{new Date(restoreCheck.order.created_at).toLocaleDateString('es-BO')}</span>
-                  <span className={`font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(restoreCheck.order.total_price).toLocaleString()}</span>
+                  <span className={`font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{restoreCheck.order.cliente_nombre}</span>
+                  <span className="text-gray-400 text-xs">{new Date(restoreCheck.order.creado_en).toLocaleDateString('es-BO')}</span>
+                  <span className={`font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(restoreCheck.order.precio_total).toLocaleString()}</span>
                 </div>
                 <div className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 border-t border-b ${dark ? 'border-gray-700 bg-gray-700/50' : 'border-gray-100 bg-gray-50'}`}>
                   Venta activa en conflicto
                 </div>
                 <div className={`px-4 py-3 flex items-center justify-between gap-4 ${dark ? 'bg-gray-800' : 'bg-white'}`}>
                   <span className={`font-mono text-xs font-bold px-2 py-1 rounded-lg border ${dark ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
-                    {restoreCheck.conflictOrder.order_number}
+                    {restoreCheck.conflictOrder.numero_venta}
                   </span>
-                  <span className={`font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{restoreCheck.conflictOrder.customer_name}</span>
-                  <span className="text-gray-400 text-xs">{new Date(restoreCheck.conflictOrder.created_at).toLocaleDateString('es-BO')}</span>
-                  <span className={`font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(restoreCheck.conflictOrder.total_price).toLocaleString()}</span>
+                  <span className={`font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{restoreCheck.conflictOrder.cliente_nombre}</span>
+                  <span className="text-gray-400 text-xs">{new Date(restoreCheck.conflictOrder.creado_en).toLocaleDateString('es-BO')}</span>
+                  <span className={`font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>Bs {Number(restoreCheck.conflictOrder.precio_total).toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -791,20 +791,20 @@ export default function Sales() {
                   <tr key={o.id} className={trClass}>
                     <td className={tdClass}>
                       <span className={`font-mono text-xs font-bold px-2 py-1 rounded-lg border ${dark ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
-                        {o.order_number}
+                        {o.numero_venta}
                       </span>
                     </td>
-                    <td className={`${tdClass} text-gray-400 text-xs`}>{new Date(o.created_at).toLocaleDateString('es-BO')}</td>
-                    <td className={`${tdClass} font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{o.customer_name}</td>
-                    <td className={`${tdClass} text-gray-400 text-xs`}>{o.created_by_name ?? '—'}</td>
+                    <td className={`${tdClass} text-gray-400 text-xs`}>{new Date(o.creado_en).toLocaleDateString('es-BO')}</td>
+                    <td className={`${tdClass} font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{o.cliente_nombre}</td>
+                    <td className={`${tdClass} text-gray-400 text-xs`}>{o.creado_por_nombre ?? '—'}</td>
                     <td className={`${tdClass} text-gray-500`}>{getProductName(o)}</td>
                     <td className={tdClass}>
                       <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                        o.products?.device_type === 'mac'
+                        o.equipos?.tipo_dispositivo === 'mac'
                           ? 'bg-gray-100 text-gray-600'
-                          : o.products
+                          : o.equipos
                             ? 'bg-blue-50 text-blue-600'
-                            : o.catalog_products
+                            : o.accesorios
                               ? 'bg-purple-50 text-purple-600'
                               : 'bg-gray-50 text-gray-400'
                       }`}>
@@ -812,11 +812,11 @@ export default function Sales() {
                       </span>
                     </td>
                     <td className={`${tdClass} font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>
-                      Bs {Number(o.total_price).toLocaleString()}
+                      Bs {Number(o.precio_total).toLocaleString()}
                     </td>
                     <td className={tdClass}>
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusStyle(o.status)}`}>
-                        {statusLabel(o.status)}
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full ${statusStyle(o.estado)}`}>
+                        {statusLabel(o.estado)}
                       </span>
                     </td>
                     <td className={`${tdClass} flex items-center gap-1`}>
@@ -866,17 +866,17 @@ export default function Sales() {
                     <tr key={o.id} className={`${trClass} opacity-70`}>
                       <td className={tdClass}>
                         <span className={`font-mono text-xs font-bold px-2 py-1 rounded-lg border ${dark ? 'bg-gray-700 border-gray-600 text-gray-400' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
-                          {o.order_number}
+                          {o.numero_venta}
                         </span>
                       </td>
-                      <td className={`${tdClass} text-gray-400 text-xs`}>{new Date(o.created_at).toLocaleDateString('es-BO')}</td>
-                      <td className={`${tdClass} font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{o.customer_name}</td>
+                      <td className={`${tdClass} text-gray-400 text-xs`}>{new Date(o.creado_en).toLocaleDateString('es-BO')}</td>
+                      <td className={`${tdClass} font-semibold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>{o.cliente_nombre}</td>
                       <td className={`${tdClass} text-gray-500`}>{getProductName(o)}</td>
                       <td className={`${tdClass} font-bold ${dark ? 'text-white' : 'text-[#0A0A0A]'}`}>
-                        Bs {Number(o.total_price).toLocaleString()}
+                        Bs {Number(o.precio_total).toLocaleString()}
                       </td>
                       <td className={`${tdClass} text-gray-400 text-xs`}>
-                        {o.deleted_at ? new Date(o.deleted_at).toLocaleDateString('es-BO') : '—'}
+                        {o.eliminado_en ? new Date(o.eliminado_en).toLocaleDateString('es-BO') : '—'}
                       </td>
                       <td className={`${tdClass} flex items-center gap-1`}>
                         <button onClick={() => checkAndRestore(o)}

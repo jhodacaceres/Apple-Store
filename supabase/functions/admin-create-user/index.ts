@@ -24,12 +24,12 @@ Deno.serve(async (req) => {
     if (!caller) return new Response(JSON.stringify({ error: 'Token inválido' }), { status: 401, headers: corsHeaders });
 
     const { data: callerProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
+      .from('perfiles')
+      .select('rol')
       .eq('id', caller.id)
       .single();
 
-    if (callerProfile?.role !== 'admin') {
+    if (callerProfile?.rol !== 'admin') {
       return new Response(JSON.stringify({ error: 'Solo un administrador puede crear usuarios' }), { status: 403, headers: corsHeaders });
     }
 
@@ -47,11 +47,11 @@ Deno.serve(async (req) => {
 
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders });
 
-    // Actualizar perfil con nombre y role
+    // Actualizar perfil con nombre y rol
     if (data.user) {
       await supabaseAdmin
-        .from('profiles')
-        .update({ full_name: full_name || null, role: is_admin ? 'admin' : 'employee' })
+        .from('perfiles')
+        .update({ nombre_completo: full_name || null, rol: is_admin ? 'admin' : 'empleado' })
         .eq('id', data.user.id);
     }
 

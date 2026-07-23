@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { getImageUrl } from '../lib/storage';
 import { trackProductView } from '../lib/analytics';
 import OrderModal from '../components/OrderModal';
-import type { CatalogProduct } from '../lib/types';
+import type { Accesorio } from '../lib/types';
 
 const CATEGORIA_LABELS: Record<string, string> = {
   fundas:     'Fundas',
@@ -17,7 +17,7 @@ const CATEGORIA_LABELS: Record<string, string> = {
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const [product, setProduct]   = useState<CatalogProduct | null>(null);
+  const [product, setProduct]   = useState<Accesorio | null>(null);
   const [loading, setLoading]   = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -25,17 +25,16 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!slug) { setNotFound(true); setLoading(false); return; }
     supabase
-      .from('catalog_products')
+      .from('accesorios')
       .select('*')
       .eq('slug', slug)
       .eq('activo', true)
-      .is('deleted_at', null)
       .single()
       .then(({ data, error }) => {
         if (error || !data) setNotFound(true);
         else {
-          setProduct(data as CatalogProduct);
-          trackProductView((data as CatalogProduct).nombre);
+          setProduct(data as Accesorio);
+          trackProductView((data as Accesorio).nombre);
         }
         setLoading(false);
       });

@@ -1,4 +1,4 @@
-import type { CatalogProduct, OrderForm } from './types';
+import type { Accesorio, OrderForm } from './types';
 
 export function buildWhatsappUrl(phone: string, nombre: string, precio: number, sku: string, utmLabel: string): string {
   const utmSuffix = utmLabel ? ` | Origen: ${utmLabel}` : '';
@@ -22,7 +22,7 @@ const OPTION_LABELS: Record<OrderForm['option'], string> = {
 
 const SEP = '--------------------------------';
 
-export function buildOrderWhatsappUrl(phone: string, product: CatalogProduct, form: OrderForm, currencySymbol = 'bs'): string {
+export function buildOrderWhatsappUrl(phone: string, product: Accesorio, form: OrderForm, currencySymbol = 'bs'): string {
   const total      = product.precio * form.cantidad;
   const precioFmt  = `${currencySymbol}${product.precio.toFixed(0)}`;
   const totalFmt   = `${currencySymbol}${total.toFixed(0)}`;

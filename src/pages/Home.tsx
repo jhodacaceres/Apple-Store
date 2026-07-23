@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase';
 import { trackWhatsappClick } from '../lib/analytics';
 import OrderModal from '../components/OrderModal';
 import OrderSuccessOverlay from '../components/OrderSuccessOverlay';
-import type { CatalogProduct, CatalogCategoria, Product } from '../lib/types';
+import type { Accesorio, AccesorioCategoria, Equipo } from '../lib/types';
 
 // ─── Constantes ───────────────────────────────────────────
 const PAGE_SIZE = 8;
@@ -21,7 +21,7 @@ const CK_ACC    = 'az_cat_acc_v1';
 const CK_PHONES = 'az_cat_phones_v1';
 
 // ─── Subcomponentes ───────────────────────────────────────
-type CatalogFilter = CatalogCategoria | 'todas' | 'celulares' | 'macs';
+type CatalogFilter = AccesorioCategoria | 'todas' | 'celulares' | 'macs';
 
 const CATEGORIAS: { value: CatalogFilter; label: string }[] = [
   { value: 'todas',      label: 'Todas'      },
@@ -132,30 +132,29 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
   const { products, loading } = useCatalogProducts();
   const [query, setQuery]         = useState('');
   const [categoria, setCategoria] = useState<CatalogFilter>('todas');
-  const [modalProduct, setModalProduct] = useState<CatalogProduct | null>(null);
-  const [modalPhone, setModalPhone]     = useState<Product | null>(null);
+  const [modalProduct, setModalProduct] = useState<Accesorio | null>(null);
+  const [modalPhone, setModalPhone]     = useState<Equipo | null>(null);
 
-  const [cachedAcc]    = useState<CatalogProduct[]>(() => readCache(CK_ACC));
-  const [cachedPhones] = useState<Product[]>(() => readCache(CK_PHONES));
+  const [cachedAcc]    = useState<Accesorio[]>(() => readCache(CK_ACC));
+  const [cachedPhones] = useState<Equipo[]>(() => readCache(CK_PHONES));
 
   const accData = (loading && products.length === 0) ? cachedAcc : products;
 
   useEffect(() => { if (!loading) writeCache(CK_ACC, products); }, [products, loading]);
 
-  const [phones, setPhones]               = useState<Product[]>(cachedPhones);
+  const [phones, setPhones]               = useState<Equipo[]>(cachedPhones);
   const [phonesLoading, setPhonesLoading] = useState(cachedPhones.length === 0);
 
   const fetchPhones = useCallback(async () => {
     const { data } = await supabase
-      .from('products')
+      .from('equipos')
       .select('*')
       .eq('visible_catalogo', true)
-      .eq('status', 'available')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false });
+      .eq('estado', 'disponible')
+      .order('creado_en', { ascending: false });
     if (data) {
-      setPhones(data as Product[]);
-      writeCache(CK_PHONES, data as Product[]);
+      setPhones(data as Equipo[]);
+      writeCache(CK_PHONES, data as Equipo[]);
     }
     setPhonesLoading(false);
   }, []);
@@ -164,8 +163,8 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
 
   useEffect(() => {
     const ch = supabase
-      .channel('catalog_products_rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => { fetchPhones(); })
+      .channel('equipos_rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipos' }, () => { fetchPhones(); })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [fetchPhones]);
@@ -177,26 +176,26 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
   useEffect(() => { setAccPage(0); }, [query, categoria]);
   useEffect(() => { setPhonePage(0); setMacPage(0); }, [categoria]);
 
-  const phoneAsProduct = (p: Product): CatalogProduct => ({
+  const phoneAsProduct = (p: Equipo): Accesorio => ({
     id: p.id, sku: '',
-    nombre: [p.model, p.color, p.capacity].filter(Boolean).join(' '),
-    categoria: 'iPhone' as CatalogCategoria,
-    descripcion: null, precio: p.price, stock: 1,
-    imagen_url: p.image_url ?? null, imagen_path: p.image_path ?? null,
-    slug: p.id, activo: true, deleted_at: null, updated_at: p.updated_at,
+    nombre: [p.modelo, p.color, p.capacidad].filter(Boolean).join(' '),
+    categoria: 'iPhone' as AccesorioCategoria,
+    descripcion: null, precio: p.precio, stock: 1,
+    imagen_url: p.imagen_url ?? null, imagen_path: p.imagen_path ?? null,
+    slug: p.id, activo: true, actualizado_en: p.actualizado_en,
   });
 
   const showAccessories = categoria !== 'celulares' && categoria !== 'macs';
   const showPhones      = categoria === 'todas' || categoria === 'celulares';
   const showMacs        = categoria === 'todas' || categoria === 'macs';
-  const actualPhones    = phones.filter(p => (p.device_type ?? 'phone') === 'phone');
-  const actualMacs      = phones.filter(p => p.device_type === 'mac');
+  const actualPhones    = phones.filter(p => (p.tipo_dispositivo ?? 'telefono') === 'telefono');
+  const actualMacs      = phones.filter(p => p.tipo_dispositivo === 'mac');
 
   const filtered = useMemo(() => {
     if (!showAccessories) return [];
     const q = query.toLowerCase();
     return accData.filter((p) => {
-      const matchCategoria = categoria === 'todas' || p.categoria === (categoria as CatalogCategoria);
+      const matchCategoria = categoria === 'todas' || p.categoria === (categoria as AccesorioCategoria);
       const matchQuery = !q || p.nombre.toLowerCase().includes(q) || (p.descripcion ?? '').toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
       return matchCategoria && matchQuery;
     });
@@ -446,7 +445,7 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                   {paginatedPhones.map((phone, index) => {
                     const imageUrl = getPhoneImageUrl(phone);
-                    const nombre = [phone.model, phone.color, phone.capacity].filter(Boolean).join(' ');
+                    const nombre = [phone.modelo, phone.color, phone.capacidad].filter(Boolean).join(' ');
                     return (
                       <div key={phone.id}
                         className="group flex flex-col bg-[#1C1C1E] rounded-3xl overflow-hidden border border-white/[0.06] hover:border-white/15 hover:bg-[#222222] transition-all duration-300 animate-fade-in-up"
@@ -463,7 +462,7 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
                         <div className="p-5 flex flex-col flex-1">
                           <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-1">Celular</p>
                           <h3 className="font-bold text-base text-white tracking-tight leading-snug">{nombre}</h3>
-                          <p className="font-bold text-2xl text-white mb-4 mt-auto">Bs {phone.price.toLocaleString('es-BO')}</p>
+                          <p className="font-bold text-2xl text-white mb-4 mt-auto">Bs {phone.precio.toLocaleString('es-BO')}</p>
                           <button onClick={() => setModalPhone(phone)}
                             className="bg-white text-zinc-950 w-full py-3 rounded-2xl flex justify-center items-center gap-2 font-semibold text-sm hover:bg-white/90 transition-all duration-200 active:scale-[0.98]">
                             Consultar por WhatsApp
@@ -490,7 +489,7 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
                   {paginatedMacs.map((mac, index) => {
                     const imageUrl = getPhoneImageUrl(mac);
-                    const nombre = [mac.model, mac.color, mac.capacity].filter(Boolean).join(' ');
+                    const nombre = [mac.modelo, mac.color, mac.capacidad].filter(Boolean).join(' ');
                     return (
                       <div key={mac.id}
                         className="group flex flex-col bg-[#1C1C1E] rounded-3xl overflow-hidden border border-white/[0.06] hover:border-white/15 hover:bg-[#222222] transition-all duration-300 animate-fade-in-up"
@@ -507,7 +506,7 @@ export default function Home({ contactPhone, whatsappMessage }: HomeProps) {
                         <div className="p-5 flex flex-col flex-1">
                           <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25 mb-1">Mac</p>
                           <h3 className="font-bold text-base text-white tracking-tight leading-snug">{nombre}</h3>
-                          <p className="font-bold text-2xl text-white mb-4 mt-auto">Bs {mac.price.toLocaleString('es-BO')}</p>
+                          <p className="font-bold text-2xl text-white mb-4 mt-auto">Bs {mac.precio.toLocaleString('es-BO')}</p>
                           <button onClick={() => setModalPhone(mac)}
                             className="bg-white text-zinc-950 w-full py-3 rounded-2xl flex justify-center items-center gap-2 font-semibold text-sm hover:bg-white/90 transition-all duration-200 active:scale-[0.98]">
                             Consultar por WhatsApp

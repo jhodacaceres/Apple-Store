@@ -6,10 +6,10 @@ import { getImageUrl } from '../lib/storage';
 import { useSettings } from '../hooks/useSettings';
 import WhatsAppIcon from './WhatsAppIcon';
 import OrderSuccessOverlay from './OrderSuccessOverlay';
-import type { CatalogProduct, OrderForm, OrderOption } from '../lib/types';
+import type { Accesorio, OrderForm, OrderOption } from '../lib/types';
 
 interface Props {
-  product: CatalogProduct;
+  product: Accesorio;
   onClose: () => void;
   currencySymbol?: string;
 }
@@ -67,7 +67,7 @@ export default function OrderModal({ product, onClose, currencySymbol = 'bs' }: 
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    const phone = settings?.contact_phone ?? '59168531959';
+    const phone = settings?.telefono_contacto ?? '59168531959';
     const url = buildOrderWhatsappUrl(phone, product, form, currencySymbol);
     trackWhatsappClick('order_modal', product.nombre);
     window.open(url, '_blank');

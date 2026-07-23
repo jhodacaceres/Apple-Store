@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { CatalogProduct } from '../lib/types';
+import type { Accesorio } from '../lib/types';
 
 export function useCatalogProducts() {
-  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [products, setProducts] = useState<Accesorio[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
 
@@ -11,7 +11,7 @@ export function useCatalogProducts() {
     let isMounted = true;
 
     supabase
-      .from('catalog_products')
+      .from('accesorios')
       .select('*')
       .eq('activo', true)
       .order('categoria')
@@ -19,27 +19,27 @@ export function useCatalogProducts() {
       .then(({ data, error: err }) => {
         if (!isMounted) return;
         if (err) setError(err.message);
-        else if (data) setProducts(data as CatalogProduct[]);
+        else if (data) setProducts(data as Accesorio[]);
         setLoading(false);
       });
 
     // Suscripción Realtime: actualiza stock sin recargar la página
     const channel = supabase
-      .channel('catalog_products_realtime')
+      .channel('accesorios_realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'catalog_products' },
+        { event: '*', schema: 'public', table: 'accesorios' },
         (payload) => {
           if (!isMounted) return;
           if (payload.eventType === 'UPDATE') {
-            const updated = payload.new as CatalogProduct;
+            const updated = payload.new as Accesorio;
             setProducts((prev) =>
               updated.activo
                 ? prev.map((p) => (p.id === updated.id ? updated : p))
                 : prev.filter((p) => p.id !== updated.id),
             );
           } else if (payload.eventType === 'INSERT') {
-            const inserted = payload.new as CatalogProduct;
+            const inserted = payload.new as Accesorio;
             if (inserted.activo) {
               setProducts((prev) => [...prev, inserted]);
             }
